@@ -16,15 +16,22 @@
 //   - sleep                    -> your sleep average + tips
 //   - "calories left", "food spend", "how much to save", "protein foods"
 // If nothing matches, "context" picks a helpful default answer.
-// Free: 5 questions a day. Pro: unlimited.
+// Limits (utils/plans.js LIMITS):
+//   Free: 5 rule-based questions a day, then 402 (upgrade_to: plus).
+//   Plus / Pro / Elite: unlimited rule-based questions, plus a daily AI
+//   allowance (Plus 5 on Flash-Lite, Pro 15, Elite 25 on Flash). After the
+//   AI allowance the coach falls back to rule-based answers (never blocks).
+//   No AI model is connected yet (services/aiCoach.js), so every answer is
+//   rule-based today; the response says engine: 'rule_based' | 'ai'.
 // ------------------------------------------------------------
 
 const express = require('express');
 const db = require('../db');
 const calc = require('../utils/calc');
-const { validate, asyncHandler, HttpError } = require('../utils/http');
-const { hasPlan } = require('../middleware/requirePlan');
-const { FREE_LIMITS } = require('../utils/plans');
+const { validate, asyncHandler } = require('../utils/http');
+const { planAndLimits, upgradeError } = require('../middleware/requirePlan');
+const { PLANS, nextPlanWithMore } = require('../utils/plans');
+const aiCoach = require('../services/aiCoach');
 const summary = require('../services/summary');
 const intelligence = require('../services/intelligence');
 const { today, addDays, hourNow } = require('../utils/dates');
@@ -299,23 +306,40 @@ router.post('/', asyncHandler(async (req, res) => {
     question: { type: 'string', required: true, maxLength: 300 },
     context: { type: 'string', oneOf: ['home', 'health', 'fitness', 'wealth'] },
   });
-  // Free plan: COACH_FREE_PER_DAY questions a day; Pro and above: unlimited
-  const pro = await hasPlan(req.user.id, 'pro');
+  const userId = req.user.id;
+  const { plan, limits } = await planAndLimits(userId);
+  // Rule-based allowance (Free only; null = unlimited)
   let remaining_today = null;
-  if (!pro) {
-    const limit = FREE_LIMITS.coach_per_day || 5;
+  if (limits.coach_per_day != null) {
+    const limit = limits.coach_per_day;
     const row = await db.get(`
       INSERT INTO feature_usage (user_id, date, feature, count) VALUES ($1, $2, 'coach', 1)
       ON CONFLICT (user_id, date, feature) DO UPDATE SET count = feature_usage.count + 1
         WHERE feature_usage.count < $3
-      RETURNING count`, [req.user.id, today(), limit]);
-    if (!row) throw new HttpError(402, `You've used your ${limit} free Raph AI questions today. They reset tomorrow, or go Pro for unlimited coaching.`);
+      RETURNING count`, [userId, today(), limit]);
+    if (!row) {
+      const up = nextPlanWithMore(plan, 'coach_per_day');
+      throw upgradeError(`You've used your ${limit} free Raph questions today. They reset tomorrow, or get ${up ? PLANS[up].name : 'a paid plan'} for unlimited coaching.`,
+        { plan, upgradeTo: up, limit });
+    }
     remaining_today = Math.max(0, limit - row.count);
   }
+
   const q = question.toLowerCase();
   let rule = RULES.find((r) => r.match(q));
   let guessed = false;
   if (!rule && context) { rule = BY_TOPIC[CONTEXT_DEFAULT[context]]; guessed = true; }
+
+  // AI first (paid plans, while today's AI allowance lasts), else rules.
+  // Mood / distress questions always get the rule answer (helplines first).
+  const safety = rule && rule.topic === 'mood_support';
+  const { answer: aiAnswer, info: ai } = safety
+    ? { answer: null, info: null }
+    : await aiCoach.tryAiAnswer({ userId, plan, question, context });
+  const meta = { plan, remaining_today, ai };
+  if (aiAnswer) {
+    return res.json({ topic: 'ai', answer: String(aiAnswer.text).trim(), data: null, context: context || null, guessed_from_context: false, engine: 'ai', ...meta });
+  }
 
   if (!rule) {
     return res.json({
@@ -323,11 +347,12 @@ router.post('/', asyncHandler(async (req, res) => {
       answer: "I'm still learning that one. I can help with: what to do today, why your steps are low, how to save more this month, "
         + "planning your day, today's nutrition, losing fat, sleep, how you're feeling, calories left, food spend and protein foods. Ask me any of these!",
       data: null,
-      remaining_today,
+      engine: 'rule_based',
+      ...meta,
     });
   }
-  const result = await rule.answer(req.user.id, q);
-  res.json({ topic: rule.topic, answer: result.text.trim(), data: result.data || null, context: context || null, guessed_from_context: guessed, remaining_today });
+  const result = await rule.answer(userId, q);
+  res.json({ topic: rule.topic, answer: result.text.trim(), data: result.data || null, context: context || null, guessed_from_context: guessed, engine: 'rule_based', ...meta });
 }));
 
 module.exports = router;

@@ -25,6 +25,8 @@ function errorHandler(err, req, res, next) {
   res.status(status).json({
     error: status >= 500 && !err.expose ? 'Something went wrong on the server' : err.message,
     ...(err.details ? { details: err.details } : {}),
+    // extra fields for the app, e.g. { upgrade_to: 'plus', limit: 5 } on a 402
+    ...(err.extra && typeof err.extra === 'object' ? err.extra : {}),
   });
 }
 

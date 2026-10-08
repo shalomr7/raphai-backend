@@ -46,7 +46,7 @@ play.setPlayApiFetcher(async (token) => {
 const DAY = 86400000;
 const iso = (msFromNow) => new Date(Date.now() + msFromNow).toISOString();
 function gSub({ product = 'raphai_pro', basePlan = 'yearly', state = 'SUBSCRIPTION_STATE_ACTIVE', expiresIn = 30 * DAY,
-  autoRenew = true, trial = false, accountId = null, linked = null }) {
+  autoRenew = true, trial = false, accountId = null, linked = null, prepaid = false }) {
   return {
     kind: 'androidpublisher#subscriptionPurchaseV2',
     regionCode: 'IN',
@@ -60,8 +60,8 @@ function gSub({ product = 'raphai_pro', basePlan = 'yearly', state = 'SUBSCRIPTI
     lineItems: [{
       productId: product,
       expiryTime: iso(expiresIn),
-      autoRenewingPlan: { autoRenewEnabled: autoRenew },
-      offerDetails: { basePlanId: basePlan, ...(trial ? { offerId: 'trial-14d' } : {}) },
+      ...(prepaid ? { prepaidPlan: { allowExtendAfterTime: iso(expiresIn - 3 * DAY) } } : { autoRenewingPlan: { autoRenewEnabled: autoRenew } }),
+      offerDetails: { basePlanId: basePlan, ...(trial ? { offerId: basePlan === 'yearly' ? 'trial-14d' : 'trial-7d' } : {}) },
       offerPhase: trial ? { freeTrial: {} } : { basePrice: {} },
     }],
   };
@@ -241,7 +241,7 @@ async function run() {
   await api('PUT', '/api/wealth/budgets', { category: 'Transport', amount: 2000 });
   await api('PUT', '/api/wealth/budgets', { category: 'Shopping', amount: 3000 });
   r = await api('PUT', '/api/wealth/budgets', { category: 'Travel', amount: 3000 });
-  check('Free: 4th budget -> 402', r.status === 402, r.body);
+  check('Free: 4th budget -> 402, upgrade to Plus', r.status === 402 && r.body.upgrade_to === 'plus' && r.body.limit === 3, r.body);
   r = await api('PUT', '/api/wealth/budgets', { category: 'Food', amount: 4000 });
   check('Free: editing an existing budget still works', r.status === 200, r.body);
   r = await api('GET', '/api/wealth/budgets');
@@ -252,7 +252,7 @@ async function run() {
   check('add money to goal', r.body.goal.saved === 5000, r.body);
   await api('POST', '/api/wealth/goals', { name: 'Emergency fund', target: 100000 });
   r = await api('POST', '/api/wealth/goals', { name: 'New phone', target: 20000 });
-  check('Free: 3rd goal -> 402', r.status === 402, r.body);
+  check('Free: 3rd goal -> 402, upgrade to Plus', r.status === 402 && r.body.upgrade_to === 'plus', r.body);
   r = await api('POST', '/api/wealth/bills', { name: 'Electricity', amount: 1200, due_day: 1 });
   check('add bill', r.status === 201, r.body);
   const billId = r.body.bill.id;
@@ -262,14 +262,33 @@ async function run() {
   r = await api('POST', `/api/wealth/bills/${billId}/pay`, {});
   check('pay bill', r.body.bill.paid === true && r.body.bill.overdue === false, r.body);
   r = await api('GET', '/api/wealth/calculators/sip?monthly=5000&rate=12&years=10');
-  check('Free: SIP calculator -> 402', r.status === 402, r.body);
+  check('Free: SIP calculator -> 402, needs Plus', r.status === 402 && r.body.upgrade_to === 'plus' && r.body.current_plan === 'free', r.body);
 
   console.log('\nPlans + subscription');
   r = await api('GET', '/api/plans');
   const pro = r.body.plans.find((p) => p.id === 'pro');
   const elite = r.body.plans.find((p) => p.id === 'elite');
-  check('plans: 14-day trial, yearly is best value', r.body.trial_days === 14 && r.body.best_value_period === 'yearly', r.body);
-  check('plans prices', pro.price_monthly === 99 && pro.price_yearly === 799 && elite.price_monthly === 199 && elite.price_yearly === 1499, r.body);
+  const plus = r.body.plans.find((p) => p.id === 'plus');
+  check('plans: 14-day trial, yearly is best value (Pro yearly)', r.body.trial_days === 14 && r.body.best_value_period === 'yearly'
+    && r.body.best_value.plan === 'pro' && r.body.best_value.base_plan_id === 'yearly' && r.body.prices_include_tax === true, r.body);
+  check('plans: 4 tiers in order Free, Plus, Pro, Elite', r.body.plans.map((p) => p.id).join() === 'free,plus,pro,elite', r.body.plans.map((p) => p.id));
+  check('plans prices (old fields kept)', plus.price_monthly === 79 && plus.price_yearly === 599 && pro.price_monthly === 199 && pro.price_yearly === 1499
+    && elite.price_monthly === 349 && elite.price_yearly === 2499, r.body.plans);
+  check('plans prices per base plan', JSON.stringify(plus.prices) === JSON.stringify({ monthly: 79, quarterly: 199, yearly: 599, 'monthly-prepaid': 89 })
+    && JSON.stringify(pro.prices) === JSON.stringify({ monthly: 199, quarterly: 499, yearly: 1499, 'monthly-prepaid': 219 })
+    && JSON.stringify(elite.prices) === JSON.stringify({ monthly: 349, quarterly: 899, yearly: 2499, 'monthly-prepaid': 379 }), r.body.plans);
+  check('plans: yearly saving 37% / 37% / 40%', plus.yearly_saving_percent === 37 && pro.yearly_saving_percent === 37 && elite.yearly_saving_percent === 40, r.body.plans);
+  const proBp = Object.fromEntries(pro.base_plans.map((b) => [b.id, b]));
+  check('plans: Pro base plans with trials, prepaid has no auto-renew/trial', Object.keys(proBp).join() === 'monthly,quarterly,yearly,monthly-prepaid'
+    && proBp.monthly.trial_days === 7 && proBp.quarterly.trial_days === 7 && proBp.yearly.trial_days === 14 && proBp.yearly.price === 1499
+    && proBp['monthly-prepaid'].auto_renew === false && proBp['monthly-prepaid'].trial_days === 0 && proBp['monthly-prepaid'].offers.length === 0
+    && proBp.yearly.offers.includes('launch-y1') && proBp.monthly.offers.includes('winback-3m'), pro.base_plans);
+  check('plans: Plus is raphai_plus, launch offer only on Pro', plus.google_product_id === 'raphai_plus'
+    && !plus.base_plans.find((b) => b.id === 'yearly').offers.includes('launch-y1') && r.body.plans[0].base_plans.length === 0, plus);
+  check('plans: limits per tier', r.body.plans.map((p) => p.limits.food_parse_per_day).join() === '5,20,50,100'
+    && r.body.plans.map((p) => p.limits.ai_coach_per_day).join() === '0,5,15,25' && r.body.plans.map((p) => p.limits.photo_scan_per_day).join() === '0,0,5,6'
+    && r.body.plans.map((p) => p.limits.coach_per_day).join() === '5,,,' && elite.limits.family_members === 3 && elite.coming_soon.includes('family_members'), r.body.plans.map((p) => p.limits));
+  check('plans: offers listed (no student offer in code)', r.body.offers.map((o) => o.id).join() === 'trial-7d,trial-14d,launch-y1,winback-3m', r.body.offers);
   r = await api('GET', '/api/subscription');
   check('starts on free', r.body.subscription.active_plan === 'free', r.body);
   r = await api('POST', '/api/coach', { question: 'calories left?' });
@@ -277,7 +296,7 @@ async function run() {
   for (let i = 0; i < 4; i++) r = await api('POST', '/api/coach', { question: 'calories left?' });
   check('coach on free: 5th question ok, 0 left', r.status === 200 && r.body.remaining_today === 0, r.body);
   r = await api('POST', '/api/coach', { question: 'calories left?' });
-  check('coach on free: 6th question -> 402', r.status === 402, r.body);
+  check('coach on free: 6th question -> 402, upsell Plus', r.status === 402 && r.body.upgrade_to === 'plus' && r.body.limit === 5 && /Plus/.test(r.body.error), r.body);
   r = await api('POST', '/api/subscription/order', { plan: 'pro', period: 'yearly' });
   check('old payment-order stub is gone -> 404', r.status === 404, r.body);
   r = await api('POST', '/api/webhooks/razorpay', '{}');
@@ -418,6 +437,39 @@ async function run() {
   check('plan check respects expiry (no RTDN needed) -> locked', r.body.locked === true, r.body);
   r = await api('GET', '/api/subscription');
   check('status after expiry -> Free (status expired)', r.body.subscription.active_plan === 'free' && r.body.subscription.status === 'expired', r.body);
+
+  console.log('\nGoogle Play: Plus, quarterly and prepaid base plans');
+  const pia = await newUser('Pia', 'pia@example.com');
+  const piaAccount = (await api('GET', '/api/subscription')).body.subscription.play_account_id;
+  r = await api('POST', '/api/subscription/google/verify', { purchaseToken: 'tok_x', productId: 'raphai_plus', basePlanId: 'weekly' });
+  check('verify: unknown basePlanId -> 400', r.status === 400, r.body);
+  fakeGoogle.tok_plus_q = gSub({ product: 'raphai_plus', basePlan: 'quarterly', trial: true, expiresIn: 7 * DAY, accountId: piaAccount });
+  r = await api('POST', '/api/subscription/google/verify', { purchaseToken: 'tok_plus_q', productId: 'raphai_plus', basePlanId: 'quarterly' });
+  check('verify: raphai_plus quarterly (7-day trial) -> Plus', r.status === 200 && r.body.valid === true && r.body.google.plan === 'plus'
+    && r.body.google.period === 'quarterly' && r.body.google.offer_id === 'trial-7d' && r.body.google.prepaid === false
+    && r.body.subscription.active_plan === 'plus' && r.body.subscription.on_trial === true, r.body);
+  r = await api('GET', '/api/wealth/calculators/sip?monthly=5000&rate=12&years=10');
+  check('Plus via Play: calculators unlocked', r.status === 200, r.body);
+  // Upgrade to Pro prepaid (no auto-renew): Google links the old token
+  fakeGoogle.tok_pro_prepaid = gSub({ product: 'raphai_pro', basePlan: 'monthly-prepaid', prepaid: true, expiresIn: 30 * DAY, accountId: piaAccount, linked: 'tok_plus_q' });
+  r = await api('POST', '/api/subscription/google/verify', { purchaseToken: 'tok_pro_prepaid', productId: 'raphai_pro', basePlanId: 'monthly-prepaid' });
+  check('verify: Pro monthly-prepaid -> Pro, prepaid, no auto-renew, expiry from lineItems', r.body.valid === true && r.body.google.prepaid === true
+    && r.body.google.auto_renew === false && r.body.google.period === 'monthly_prepaid'
+    && r.body.subscription.active_plan === 'pro' && r.body.subscription.period === 'monthly_prepaid' && r.body.subscription.auto_renew === false
+    && r.body.subscription.google_play.prepaid === true && Math.abs(new Date(r.body.subscription.expires_at) - (Date.now() + 30 * DAY)) < 60000, r.body);
+  // Prepaid time runs out: Google says EXPIRED (RTDN 13)
+  fakeGoogle.tok_pro_prepaid = gSub({ product: 'raphai_pro', basePlan: 'monthly-prepaid', prepaid: true, state: 'SUBSCRIPTION_STATE_EXPIRED', expiresIn: -60000, accountId: piaAccount, linked: 'tok_plus_q' });
+  token = null;
+  r = await api('POST', '/api/subscription/google/rtdn?secret=smoke_rtdn_secret', subNote('tok_pro_prepaid', 13));
+  check('RTDN: prepaid expired -> 200', r.status === 200 && r.body.type === 'EXPIRED', r.body);
+  token = pia.token;
+  r = await api('GET', '/api/subscription');
+  check('prepaid expired -> Free (old Plus token stays superseded)', r.body.subscription.active_plan === 'free', r.body);
+  // Top-up style: a new prepaid purchase whose expiry is in the future, but Google still says ACTIVE after expiry -> no access
+  fakeGoogle.tok_elite_prepaid = gSub({ product: 'raphai_elite', basePlan: 'monthly-prepaid', prepaid: true, expiresIn: -1000, accountId: piaAccount });
+  r = await api('POST', '/api/subscription/google/verify', { purchaseToken: 'tok_elite_prepaid', productId: 'raphai_elite', basePlanId: 'monthly-prepaid' });
+  check('prepaid past its expiryTime gives no access even if state is ACTIVE', r.body.valid === false && r.body.subscription.active_plan === 'free', r.body);
+  token = hariToken;
 
   console.log('\nGoogle Play RTDN (Pub/Sub push)');
   token = null;
@@ -608,9 +660,9 @@ async function intelligenceTests({ D, mainToken }) {
 
   console.log('\nRaphAi Intelligence: Free vs Pro gating');
   r = await api('GET', '/api/insights/trends?days=30');
-  check('Free: 30-day trends -> 402', r.status === 402, r.body);
+  check('Free: 30-day trends -> 402, upgrade to Plus', r.status === 402 && r.body.upgrade_to === 'plus', r.body);
   r = await api('GET', '/api/insights/trends?days=14');
-  check('trends days must be 7 or 30 -> 400', r.status === 400, r.body);
+  check('trends days must be 7, 30, 90 or 365 -> 400', r.status === 400, r.body);
   for (const p of ['patterns', 'brief', 'profile']) {
     r = await api('GET', `/api/insights/${p}`);
     check(`Free: /api/insights/${p} -> { locked: true }`, r.status === 200 && r.body.locked === true, r.body);
@@ -623,10 +675,12 @@ async function intelligenceTests({ D, mainToken }) {
   }
   check('Free: 5 food parses a day allowed', r.status === 200 && r.body.usage.used === 5 && r.body.usage.remaining === 0, r.body);
   r = await api('POST', '/api/food/parse', { text: '2 idli' });
-  check('Free: 6th food parse -> 402', r.status === 402, r.body);
+  check('Free: 6th food parse -> 402, Plus gives 20', r.status === 402 && r.body.upgrade_to === 'plus' && /20 a day/.test(r.body.error), r.body);
   r = await api('GET', '/api/plans');
   const proFeatures = r.body.plans.find((p) => p.id === 'pro').features.join('|');
-  check('plans: Pro lists the new intelligence features', ['RaphAi Intelligence', 'Trends for 30 days', 'Life patterns', 'Daily brief', 'Unlimited AI food parse'].every((f) => proFeatures.includes(f)), proFeatures);
+  const plusFeatures = r.body.plans.find((p) => p.id === 'plus').features.join('|');
+  check('plans: Pro lists the intelligence features', ['RaphAi Intelligence', 'Trends for 365 days', 'Your patterns', 'AI food parse (50 a day)'].every((f) => proFeatures.includes(f)), proFeatures);
+  check('plans: Plus lists patterns, brief, 30-day trends, no ads', ['Life patterns', 'Daily brief', 'Trends for 30 days', 'No ads', 'AI food parse (20 a day)'].every((f) => plusFeatures.includes(f)), plusFeatures);
   check('plans: Free lists AI food parse (5 a day)', r.body.plans.find((p) => p.id === 'free').features.join('|').includes('AI food parse (5 a day)'), r.body.plans[0]);
 
   // Nutrition safety through the API: woman, 1 kg/week -> target clamped to 1,200 = aggressive deficit
@@ -695,7 +749,7 @@ async function intelligenceTests({ D, mainToken }) {
   check('parse: 2 rotis = 240 kcal', it[1].name === 'Roti / Chapati' && it[1].kcal === 240, it[1]);
   check('parse: a glass of milk = 145 kcal', it[2].name === 'Milk (toned)' && it[2].qty === 1 && it[2].unit === 'glass' && it[2].kcal === 145, it[2]);
   check('parse: totals 541 kcal', r.body.totals.kcal === 541 && r.body.totals.protein === 26, r.body.totals);
-  check('Pro: food parse unlimited', r.body.usage.limit === null, r.body.usage);
+  check('Pro: food parse limit 50 a day', r.body.usage.limit === 50 && r.body.usage.plan === 'pro', r.body.usage);
   r = await api('POST', '/api/food/parse', { text: '1 plate chicken biryani' });
   check('parse: 1 plate chicken biryani = 500 kcal', r.body.items.length === 1 && r.body.items[0].name === 'Chicken Biryani' && r.body.items[0].unit === 'plate' && r.body.items[0].kcal === 500, r.body);
   r = await api('POST', '/api/food/parse', { text: 'half katori dal' });
@@ -719,6 +773,9 @@ async function intelligenceTests({ D, mainToken }) {
     show(`coach "${question}"`, body.answer);
     return body;
   };
+  const raw = (await api('POST', '/api/coach', { question: 'What should I do today?' })).body;
+  check('Pro coach: rule-based today (no AI connected), AI allowance 15 on Flash', raw.engine === 'rule_based' && raw.plan === 'pro'
+    && raw.ai.connected === false && raw.ai.limit === 15 && raw.ai.model === 'gemini-2.5-flash' && raw.remaining_today === null, raw);
   let c = await ask('What should I do today?');
   check('coach: what should I do today', c.topic === 'what_to_do_today' && c.answer.length > 20, c);
   c = await ask('Why are my steps low?');
@@ -776,11 +833,69 @@ async function intelligenceTests({ D, mainToken }) {
   r = await api('GET', '/api/insights/today');
   check('20-day user: today works before anything is logged today', r.status === 200 && r.body.raphscore.areas.find((a) => a.key === 'recovery').status === 'no_data', r.body.raphscore);
 
+  await plusTierTests();
+
   const tara = await newUser('Tara', 'tara@example.com');
   await api('POST', '/api/subscription/trial');
   for (let i = 0; i < 10; i++) await db.run('INSERT INTO sleep_logs (user_id, date, hours) VALUES ($1, $2, 7)', [tara.id, addDays(D, -(i + 1))]);
   r = await api('GET', '/api/insights/patterns');
   check('patterns: 10 days -> enough_data false, days_needed 4', r.body.enough_data === false && r.body.days_needed === 4, r.body);
+}
+
+// ---------------------------------------------------------------------
+// Plus tier (dev-activate), per-tier limits, AI coach allowance + fallback
+// ---------------------------------------------------------------------
+const aiCoach = require('../src/services/aiCoach');
+
+async function plusTierTests() {
+  console.log('\nPlus tier: features and limits');
+  await newUser('Om', 'om@example.com');
+  let r = await api('POST', '/api/subscription/dev-activate', { plan: 'plus', period: 'quarterly' });
+  check('dev-activate plus quarterly', r.status === 200 && r.body.subscription.active_plan === 'plus' && r.body.subscription.period === 'quarterly'
+    && Math.round((new Date(r.body.subscription.expires_at) - Date.now()) / DAY) >= 89, r.body.subscription);
+  await api('PUT', '/api/profile', { sex: 'male', age: 30, height_cm: 172, weight_kg: 75, activity_factor: 1.375, goal: 'maintain', neck_cm: 38, waist_cm: 86, income: 50000 });
+  r = await api('GET', '/api/health/targets');
+  check('Plus: body fat unlocked', r.body.body_fat_locked === false, r.body);
+  for (const c of ['Food', 'Transport', 'Shopping', 'Travel']) r = await api('PUT', '/api/wealth/budgets', { category: c, amount: 1000 });
+  check('Plus: 4th budget allowed', r.status === 200, r.body);
+  r = await api('GET', '/api/insights/trends?days=30');
+  check('Plus: 30-day trends', r.status === 200 && r.body.days === 30, r.body);
+  r = await api('GET', '/api/insights/trends?days=90');
+  check('Plus: 90-day trends -> 402, upgrade to Pro', r.status === 402 && r.body.upgrade_to === 'pro' && r.body.limit === 30, r.body);
+  r = await api('GET', '/api/insights/patterns');
+  check('Plus: life patterns unlocked', r.status === 200 && r.body.locked !== true, r.body);
+  r = await api('GET', '/api/insights/brief');
+  check('Plus: daily brief unlocked', r.status === 200 && r.body.locked !== true, r.body);
+  r = await api('GET', '/api/insights/profile');
+  check('Plus: "Your patterns" locked, needs Pro', r.body.locked === true && r.body.plan_needed === 'pro', r.body);
+  for (let i = 1; i <= 20; i++) {
+    r = await api('POST', '/api/food/parse', { text: '1 roti' });
+    if (r.status !== 200) break;
+  }
+  check('Plus: 20 food parses a day', r.status === 200 && r.body.usage.used === 20 && r.body.usage.limit === 20, r.body.usage);
+  r = await api('POST', '/api/food/parse', { text: '1 roti' });
+  check('Plus: 21st parse -> 402, Pro gives 50', r.status === 402 && r.body.upgrade_to === 'pro' && /50 a day/.test(r.body.error), r.body);
+  for (let i = 0; i < 6; i++) r = await api('POST', '/api/coach', { question: 'calories left?' });
+  check('Plus: rule-based coach unlimited (6th ok), AI limit 5 on Flash-Lite', r.status === 200 && r.body.engine === 'rule_based'
+    && r.body.ai.limit === 5 && r.body.ai.model === 'gemini-2.5-flash-lite' && r.body.ai.limit_reached === false, r.body);
+
+  console.log('\nAI coach allowance + rule-based fallback (fake AI provider)');
+  aiCoach.setAiProvider(async ({ model }) => ({ text: `AI answer from ${model}` }));
+  for (let i = 1; i <= 5; i++) r = await api('POST', '/api/coach', { question: 'calories left?' });
+  check('Plus: 5th AI answer, 0 AI left', r.body.engine === 'ai' && r.body.answer === 'AI answer from gemini-2.5-flash-lite' && r.body.ai.remaining === 0, r.body);
+  r = await api('POST', '/api/coach', { question: 'calories left?' });
+  check('Plus: after the AI limit -> rule-based answer (not blocked), upsell Pro', r.status === 200 && r.body.engine === 'rule_based'
+    && r.body.topic === 'calories_left' && r.body.ai.limit_reached === true && r.body.ai.upgrade_to === 'pro' && /Pro gives you 15/.test(r.body.ai.message), r.body);
+  r = await api('POST', '/api/coach', { question: 'I feel very low and hopeless' });
+  check('mood / distress questions never go to AI', r.body.engine === 'rule_based' && r.body.topic === 'mood_support', r.body);
+  aiCoach.setAiProvider(async () => { throw new Error('model down'); });
+  await api('POST', '/api/subscription/dev-activate', { plan: 'elite', period: 'monthly-prepaid' });
+  r = await api('POST', '/api/coach', { question: 'calories left?' });
+  check('Elite (prepaid via dev-activate): AI failure -> rule-based, failed call not counted (5 used earlier today stay)', r.body.plan === 'elite' && r.body.engine === 'rule_based'
+    && r.body.ai.limit === 25 && r.body.ai.used === 5 && r.body.ai.remaining === 20, r.body);
+  aiCoach.setAiProvider(null);
+  r = await api('POST', '/api/subscription/dev-activate', { plan: 'gold', period: 'monthly' });
+  check('dev-activate unknown plan -> 400', r.status === 400, r.body);
 }
 
 // ---------------------------------------------------------------------

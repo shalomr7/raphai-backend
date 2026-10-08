@@ -16,7 +16,9 @@
 
 const express = require('express');
 const db = require('../db');
-const { PLANS, TRIAL_DAYS, GOOGLE_PRODUCTS } = require('../utils/plans');
+const {
+  PLANS, PLAN_ORDER, TRIAL_DAYS, BASE_PLANS, GOOGLE_BASE_PLANS, OFFERS, FEATURE_TIERS, productIdFor, yearlySavingPercent,
+} = require('../utils/plans');
 const { currentPlan } = require('../middleware/requirePlan');
 const { validate, asyncHandler, HttpError } = require('../utils/http');
 const play = require('../services/googlePlay');
@@ -33,8 +35,8 @@ async function activatePlan(userId, plan, period, q = db) {
     start = new Date(sub.expires_at); // extend the existing plan
   }
   const end = new Date(start);
-  if (period === 'yearly') end.setFullYear(end.getFullYear() + 1);
-  else end.setMonth(end.getMonth() + 1);
+  const months = (Object.values(BASE_PLANS).find((b) => b.period === period) || { months: 1 }).months;
+  end.setMonth(end.getMonth() + months);
 
   await q.run(`INSERT INTO subscriptions (user_id, plan, period, status, expires_at, source) VALUES ($1, $2, $3, 'active', $4, NULL)
     ON CONFLICT (user_id) DO UPDATE SET plan = excluded.plan, period = excluded.period, status = 'active', expires_at = excluded.expires_at, source = NULL`,
@@ -93,6 +95,7 @@ async function subscriptionStatus(userId) {
       state: google.subscription_state,
       expires_at: google.expires_at ? new Date(google.expires_at).toISOString() : null,
       auto_renew: Boolean(google.auto_renew),
+      prepaid: Boolean(BASE_PLANS[google.base_plan_id] && !BASE_PLANS[google.base_plan_id].auto_renew),
       in_trial: Boolean(google.in_trial),
       manage_url: playManageUrl(google.product_id),
     } : null,
@@ -106,20 +109,52 @@ const plansRouter = express.Router();
 plansRouter.get('/', (req, res) => {
   res.json({
     currency: 'INR',
-    trial_days: TRIAL_DAYS, // free trial of Pro for new users
+    prices_include_tax: true, // Play India prices include GST
+    // Server-side Pro trial length; Play trials are offers (see base_plans[].trial_days)
+    trial_days: TRIAL_DAYS,
     best_value_period: 'yearly',
-    // Google Play product ids (each has base plans "monthly" and "yearly")
-    google_play: { package_name: play.packageName() || 'com.raphai.app', billing_configured: play.isConfigured() },
-    plans: Object.values(PLANS).map((p) => ({
-      id: p.id,
-      name: p.name,
-      price_monthly: p.prices.monthly,
-      price_yearly: p.prices.yearly,
-      // how much cheaper yearly is compared to 12 monthly payments
-      yearly_saving: p.prices.monthly * 12 - p.prices.yearly,
-      google_product_id: Object.keys(GOOGLE_PRODUCTS).find((k) => GOOGLE_PRODUCTS[k] === p.id) || null,
-      features: p.features,
-    })),
+    best_value: { plan: 'pro', base_plan_id: 'yearly' },
+    google_play: {
+      package_name: play.packageName() || 'com.raphai.app',
+      billing_configured: play.isConfigured(),
+      base_plan_ids: Object.keys(BASE_PLANS),
+    },
+    // Play offers (trials, launch price, win-back)
+    offers: Object.entries(OFFERS).map(([id, o]) => ({ id, ...o })),
+    feature_tiers: FEATURE_TIERS,
+    plans: PLAN_ORDER.map((id) => PLANS[id]).map((p) => {
+      const productId = productIdFor(p.id);
+      return {
+        id: p.id,
+        name: p.name,
+        rank: p.rank,
+        tagline: p.tagline,
+        // kept for older app versions
+        price_monthly: p.prices.monthly,
+        price_yearly: p.prices.yearly,
+        yearly_saving: p.prices.monthly * 12 - p.prices.yearly,
+        // all prices by Play base plan id
+        prices: { ...p.prices },
+        price_quarterly: p.prices.quarterly,
+        price_monthly_prepaid: p.prices['monthly-prepaid'],
+        yearly_saving_percent: yearlySavingPercent(p.id),
+        google_product_id: productId,
+        base_plans: productId ? Object.entries(BASE_PLANS).map(([bpId, bp]) => ({
+          id: bpId,
+          period: bp.period,
+          months: bp.months,
+          billing_period: bp.billing_period,
+          auto_renew: bp.auto_renew,
+          price: p.prices[bpId],
+          trial_offer_id: bp.trial_offer,
+          trial_days: bp.trial_days,
+          offers: Object.entries(OFFERS).filter(([, o]) => o.products.includes(productId) && o.base_plans.includes(bpId)).map(([oid]) => oid),
+        })) : [],
+        limits: p.limits,
+        features: p.features,
+        coming_soon: p.id === 'elite' ? ['family_members'] : [],
+      };
+    }),
   });
 });
 
@@ -133,8 +168,9 @@ subRouter.get('/', asyncHandler(async (req, res) => {
 
 // Plan + period, used by /dev-activate
 const PLAN_RULES = {
-  plan: { type: 'string', required: true, oneOf: ['pro', 'elite'] },
-  period: { type: 'string', required: true, oneOf: ['monthly', 'yearly'] },
+  plan: { type: 'string', required: true, oneOf: ['plus', 'pro', 'elite'] },
+  // a period or a Play base plan id ("monthly-prepaid" -> "monthly_prepaid")
+  period: { type: 'string', required: true, oneOf: [...new Set([...Object.keys(GOOGLE_BASE_PLANS), ...Object.values(GOOGLE_BASE_PLANS)])] },
 };
 
 subRouter.post('/cancel', asyncHandler(async (req, res) => {
@@ -159,11 +195,11 @@ subRouter.post('/trial', asyncHandler(async (req, res) => {
   res.json({ subscription: await subscriptionStatus(req.user.id), note: `Pro trial started for ${TRIAL_DAYS} days` });
 }));
 
-// DEVELOPMENT ONLY — lets you test Pro/Elite features without paying.
+// DEVELOPMENT ONLY — lets you test Plus/Pro/Elite features without paying.
 subRouter.post('/dev-activate', asyncHandler(async (req, res) => {
   if (process.env.NODE_ENV === 'production') throw new HttpError(403, 'Not available in production');
   const b = validate(req.body, PLAN_RULES);
-  await activatePlan(req.user.id, b.plan, b.period);
+  await activatePlan(req.user.id, b.plan, GOOGLE_BASE_PLANS[b.period] || b.period);
   res.json({ subscription: await subscriptionStatus(req.user.id), note: 'Activated without payment (development mode)' });
 }));
 

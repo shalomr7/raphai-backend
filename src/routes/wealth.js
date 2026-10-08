@@ -16,8 +16,8 @@ const calc = require('../utils/calc');
 const { validate, idParam, HttpError, asyncHandler } = require('../utils/http');
 const { today, thisMonth, daysInMonth } = require('../utils/dates');
 const summary = require('../services/summary');
-const { hasPlan, requirePlan } = require('../middleware/requirePlan');
-const { FREE_LIMITS } = require('../utils/plans');
+const { hasPlan, requirePlan, upgradeError } = require('../middleware/requirePlan');
+const { FREE_LIMITS, FEATURE_TIERS } = require('../utils/plans');
 
 const router = express.Router();
 const MODES = ['UPI', 'Card', 'Cash'];
@@ -142,10 +142,10 @@ router.put('/budgets', asyncHandler(async (req, res) => {
   const month = b.month || thisMonth();
   // Free plan: only a few budgets per month (changing an existing one is always fine)
   const existing = await db.get('SELECT id FROM budgets WHERE user_id = $1 AND month = $2 AND category = $3', [req.user.id, month, b.category]);
-  if (!existing && !(await hasPlan(req.user.id, 'pro'))) {
+  if (!existing && !(await hasPlan(req.user.id, FEATURE_TIERS.unlimited_budgets))) {
     const count = (await db.get('SELECT COUNT(*)::int AS n FROM budgets WHERE user_id = $1 AND month = $2', [req.user.id, month])).n;
     if (count >= FREE_LIMITS.budgets_per_month) {
-      throw new HttpError(402, `The Free plan allows ${FREE_LIMITS.budgets_per_month} budgets a month. Upgrade to Pro for unlimited budgets.`);
+      throw upgradeError(`The Free plan allows ${FREE_LIMITS.budgets_per_month} budgets a month. Upgrade to Plus for unlimited budgets.`, { plan: 'free', upgradeTo: FEATURE_TIERS.unlimited_budgets, limit: FREE_LIMITS.budgets_per_month });
     }
   }
   const budget = await db.get(`INSERT INTO budgets (user_id, month, category, amount) VALUES ($1, $2, $3, $4)
@@ -183,10 +183,10 @@ function goalView(g) {
 router.post('/goals', asyncHandler(async (req, res) => {
   const b = validate(req.body, GOAL_RULES);
   // Free plan: only a few savings goals
-  if (!(await hasPlan(req.user.id, 'pro'))) {
+  if (!(await hasPlan(req.user.id, FEATURE_TIERS.unlimited_goals))) {
     const count = (await db.get('SELECT COUNT(*)::int AS n FROM savings_goals WHERE user_id = $1', [req.user.id])).n;
     if (count >= FREE_LIMITS.savings_goals) {
-      throw new HttpError(402, `The Free plan allows ${FREE_LIMITS.savings_goals} savings goals. Upgrade to Pro for unlimited goals.`);
+      throw upgradeError(`The Free plan allows ${FREE_LIMITS.savings_goals} savings goals. Upgrade to Plus for unlimited goals.`, { plan: 'free', upgradeTo: FEATURE_TIERS.unlimited_goals, limit: FREE_LIMITS.savings_goals });
     }
   }
   const info = await db.get('INSERT INTO savings_goals (user_id, name, target, saved, deadline) VALUES ($1, $2, $3, $4, $5) RETURNING id',
@@ -312,8 +312,8 @@ router.delete('/bills/:id/pay', asyncHandler(async (req, res) => {
 
 // ================= CALCULATORS =================
 // GET /calculators/sip?monthly=5000&rate=12&years=10
-// Calculators are a Pro feature
-router.get('/calculators/sip', requirePlan('pro'), (req, res) => {
+// Calculators are a Plus feature (and above)
+router.get('/calculators/sip', requirePlan(FEATURE_TIERS.calculators), (req, res) => {
   const q = validate(req.query, {
     monthly: { type: 'number', required: true, min: 100 },
     rate: { type: 'number', required: true, min: 0, max: 50 },
@@ -323,7 +323,7 @@ router.get('/calculators/sip', requirePlan('pro'), (req, res) => {
 });
 
 // GET /calculators/emi?principal=500000&rate=9.5&months=60
-router.get('/calculators/emi', requirePlan('pro'), (req, res) => {
+router.get('/calculators/emi', requirePlan(FEATURE_TIERS.calculators), (req, res) => {
   const q = validate(req.query, {
     principal: { type: 'number', required: true, min: 1000 },
     rate: { type: 'number', required: true, min: 0, max: 60 },

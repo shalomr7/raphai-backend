@@ -4,6 +4,8 @@
 //
 //   POST /api/subscription/google/verify   (login needed)
 //        The app sends { purchaseToken, productId, basePlanId } right after
+//        (productId: raphai_plus | raphai_pro | raphai_elite;
+//         basePlanId: monthly | quarterly | yearly | monthly-prepaid)
 //        a purchase (or on "Restore purchases"). We ask Google whether it is
 //        real, save it, and switch the plan on. The app must only
 //        acknowledge/finish the purchase when we answer { valid: true }.
@@ -109,6 +111,7 @@ googleSubRouter.post('/verify', asyncHandler(async (req, res) => {
       state: m.state,
       expires_at: m.expiresAt,
       auto_renew: m.autoRenew,
+      prepaid: m.prepaid,
       in_trial: m.inTrial,
       acknowledged: m.acknowledged,
       test_purchase: m.testPurchase,

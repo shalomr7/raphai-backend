@@ -69,12 +69,12 @@ function createApp() {
   app.use('/api/dashboard', requireAuth, dashboardRoutes);
   app.use('/api/export', requireAuth, exportRoutes);
   app.use('/api/consents', requireAuth, consentRoutes);
-  // RaphAi Intelligence (each route checks Free vs Pro itself)
+  // RaphAi Intelligence (each route checks the plan itself: utils/plans.js FEATURE_TIERS)
   app.use('/api/insights', requireAuth, insightsRoutes);
   app.use('/api/food', requireAuth, foodRoutes);       // POST /api/food/parse
   app.use('/api/activity', requireAuth, activityRoutes);
 
-  // Coach: Free gets a daily allowance, Pro is unlimited (checked in the route)
+  // Coach: Free gets a daily allowance; paid plans unlimited + daily AI allowance (checked in the route)
   app.use('/api/coach', requireAuth, coachRoutes);
 
   // Unknown URL -> 404, and any error -> clean JSON

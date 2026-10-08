@@ -22,7 +22,7 @@
 const crypto = require('crypto');
 const { GoogleAuth } = require('google-auth-library');
 const db = require('../db');
-const { PLANS, GOOGLE_PRODUCTS, GOOGLE_BASE_PLANS } = require('../utils/plans');
+const { PLANS, GOOGLE_PRODUCTS, GOOGLE_BASE_PLANS, BASE_PLANS } = require('../utils/plans');
 const { HttpError } = require('../utils/http');
 
 const SCOPE = 'https://www.googleapis.com/auth/androidpublisher';
@@ -162,7 +162,14 @@ function pickLineItem(sub, preferredProductId) {
  * mapSubscription(sub, productId?) -> plain object we store and return:
  *   { productId, basePlanId, offerId, plan, period, state, expiresAt,
  *     autoRenew, inTrial, acknowledged, linkedPurchaseToken, orderId,
- *     testPurchase, accountId, entitled }
+ *     testPurchase, accountId, prepaid, entitled }
+ *
+ * Base plans: monthly, quarterly, yearly (auto-renewing) and
+ * monthly-prepaid (PREPAID: paid once, never renews). A prepaid line item
+ * has "prepaidPlan" instead of "autoRenewingPlan"; access simply ends at
+ * the line item's expiryTime (we read it the same way for every plan).
+ * An unknown base plan id (e.g. a future or legacy one) still gives access
+ * to the product's plan; only its period is unknown (null).
  */
 function mapSubscription(sub, preferredProductId) {
   const li = pickLineItem(sub, preferredProductId);
@@ -184,6 +191,7 @@ function mapSubscription(sub, preferredProductId) {
     state,
     expiresAt,
     autoRenew: Boolean(li.autoRenewingPlan && li.autoRenewingPlan.autoRenewEnabled),
+    prepaid: Boolean(li.prepaidPlan) || (BASE_PLANS[basePlanId] ? !BASE_PLANS[basePlanId].auto_renew : false),
     inTrial: Boolean(inTrial),
     acknowledged: sub.acknowledgementState === 'ACKNOWLEDGEMENT_STATE_ACKNOWLEDGED',
     linkedPurchaseToken: sub.linkedPurchaseToken || null,

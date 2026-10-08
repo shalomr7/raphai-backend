@@ -1,6 +1,6 @@
 # RaphAi Terms & Conditions
 
-**Version:** 2.0
+**Version:** 2.1
 **Effective date:** 8 October 2026
 **Last updated:** 8 October 2026
 
@@ -13,7 +13,7 @@ These Terms & Conditions ("**Terms**") are a legal agreement between you and **S
 > - You must be **18 or older**.
 > - RaphAi is **not a doctor** and **not a financial adviser**. All numbers are estimates.
 > - The **Coach, RaphScore and insights can be wrong**. Do not rely on them for medical or money decisions.
-> - Paid plans **renew automatically** through Google Play until you cancel in Google Play.
+> - Monthly, quarterly and yearly plans **renew automatically** through Google Play until you cancel in Google Play. Prepaid plans do not renew.
 > - Refunds follow **Google Play's refund policy**. We may also give goodwill refunds.
 > - **We never sell your data, never give loans, and never use Health Connect data for ads.**
 
@@ -35,47 +35,67 @@ These Terms & Conditions ("**Terms**") are a legal agreement between you and **S
 
 ## 3. Plans, prices and payments
 
-### 3.1 Plans
+### 3.1 Plans and prices
 
-| Plan | Price |
-|---|---|
-| **Free** | ₹0 — core features (may show ads in future; never on health or money-entry screens) |
-| **Pro** | ₹99 per month, or ₹799 per year |
-| **Elite** | ₹199 per month, or ₹1,499 per year |
+RaphAi has a free plan and three paid plans. Prices are in Indian rupees, as listed in Google Play India:
 
-- **Prices shown in Google Play include applicable taxes, as Google displays them.** The price Google Play shows you at checkout is the price you pay.
-- The features in each plan are shown in the app when you subscribe. We may improve, add or change features. We will not take away a main feature you have already paid for during your current paid period.
+| Plan | Monthly | Quarterly (3 months) | Yearly | Prepaid 1 month (no auto-renew) |
+|---|---|---|---|---|
+| **Free** | ₹0 | – | – | – |
+| **Plus** | ₹79 | ₹199 | ₹599 | ₹89 |
+| **Pro** | ₹199 | ₹499 | ₹1,499 | ₹219 |
+| **Elite** | ₹349 | ₹899 | ₹2,499 | ₹379 |
 
-### 3.2 Free trial
+- **Free** includes the core features and may show ads in future (never on health or money-entry screens). Ads are shown on Free only; paid plans have no ads.
+- **Elite** is planned to cover **up to 3 family members**. This family feature is **coming soon**; until it is available in the app, Elite covers one account.
+- **Prices shown in Google Play include applicable taxes (such as GST), as Google displays them.** Google Play may show a different price in your country, currency or for your account (for example during a sale or offer). **The price Google Play shows you at checkout is the price you pay.**
+- The features and daily limits of each plan (for example the number of AI coach answers or food parses a day) are shown in the app when you subscribe. AI features have **fair-use daily limits**; when you reach a limit, the coach switches to simpler built-in answers until the next day. We may improve, add or change features. We will not take away a main feature you have already paid for during your current paid period.
+- **Existing subscribers** keep the price they signed up at until it is changed under section 3.7.
 
-- Pro (and Elite, where offered) may come with a **14-day free trial**.
-- **One trial per Google account per plan**, as Google Play enforces.
+### 3.2 Billing periods: auto-renewing and prepaid
+
+- **Monthly, quarterly and yearly plans renew automatically** at the end of each period at the then-current price, until you cancel in Google Play.
+- **Prepaid plans do not renew.** You pay once for one month; your paid features end when that month ends unless you buy (or top up) again. Free trials and offers do not apply to prepaid plans.
+
+### 3.3 Free trials
+
+- Where offered, new subscribers can get a **7-day free trial** on monthly and quarterly plans and a **14-day free trial** on yearly plans.
+- **One trial per Google account per plan**, as Google Play decides eligibility.
 - **If you do not cancel before the trial ends, your paid subscription starts automatically** and you will be charged. Google Play shows the trial end date and price before you confirm.
 
-### 3.3 Billing through Google Play
+### 3.4 Offers
+
+From time to time we may run offers through Google Play, for example:
+
+- **Launch offer:** Pro yearly at **₹999 for the first year** for new subscribers, then the normal yearly price (₹1,499 today) from the first renewal, unless you cancel.
+- **Win-back offer:** for people who subscribed before and come back, **50% off the monthly price for the first 3 months**, then the normal monthly price, unless you cancel.
+
+Each offer shows its price, length and what you pay afterwards in Google Play before you confirm. We choose who is eligible for an offer, and we may start, change or end offers at any time; this does not affect an offer you have already accepted.
+
+### 3.5 Billing through Google Play
 
 - All payments are handled by **Google Play** under the [Google Play Terms of Service](https://play.google.com/about/play-terms.html). We never see or store your card or UPI details.
-- Subscriptions **renew automatically** at the start of each period (monthly or yearly) at the then-current price, until you cancel.
 - In India, Google Play may place an **authorisation hold** on your payment method up to 5 days before renewal ([Google Play Help](https://support.google.com/googleplay/answer/7018481)).
 - If a payment fails, Google Play may cancel your subscription and your account moves back to Free. Your data stays.
 
-### 3.4 How to cancel
+### 3.6 How to cancel
 
 - Cancel anytime in **Google Play → Profile → Payments & subscriptions → Subscriptions → RaphAi → Cancel subscription**, or at <https://play.google.com/store/account/subscriptions>.
 - **Uninstalling the app or deleting your RaphAi account does not cancel your subscription.** You must cancel in Google Play.
 - After you cancel, you keep paid features **until the end of the period you already paid for**, and you will not be charged again.
+- A prepaid plan has nothing to cancel: it simply ends at the end of the month you paid for.
 
-### 3.5 Refunds
+### 3.7 Price changes
+
+- We may change prices. You will be told **in advance** through Google Play and/or the app, as Google Play's rules require.
+- A new price applies from your next renewal after the notice. If you do not agree, cancel before it applies.
+
+### 3.8 Refunds
 
 - Payments are processed by Google, so **refunds follow [Google Play's refund policy](https://support.google.com/googleplay/answer/2479637)**. You can request a refund through Google Play.
 - **Goodwill refunds.** If something went wrong, email [SUPPORT EMAIL]. We may give a goodwill refund **at our discretion**, even where Google's policy does not require one.
 - **If we shut the Service down** while you have a paid subscription, we will give you a **pro-rata refund** for the unused part of your paid period.
 - Nothing here takes away any refund right you have under the **Consumer Protection Act, 2019**.
-
-### 3.6 Price changes
-
-- We may change prices. You will be told **in advance** through Google Play and/or the app, as Google Play's rules require.
-- A new price applies from your next renewal after the notice. If you do not agree, cancel before it applies.
 
 ## 4. Health disclaimer — please read
 
@@ -133,7 +153,7 @@ You agree **not** to:
 
 ## 10. Ads (Free plan — planned)
 
-- The Free plan may show ads from Google AdMob in future. Pro and Elite are ad-free.
+- The Free plan may show ads from Google AdMob in future. Plus, Pro and Elite are ad-free.
 - Ads will **not** appear on health-logging or money-entry screens and will **never** use Health Connect, health or money data.
 - Personalised ads only with your consent. Change your choice in **You → Privacy Centre → Ad choices**.
 - We are not responsible for advertisers' products or websites.

@@ -198,7 +198,7 @@ Google's own use of data is covered by Google's privacy policy: <https://policie
 
 If we add ads:
 
-- Ads appear **only on the Free plan**. Pro and Elite have no ads.
+- Ads appear **only on the Free plan**. Plus, Pro and Elite have no ads.
 - Ads **never** appear on health-logging or money-entry screens.
 - Ads **never** use Health Connect, health or money data.
 - **Personalised ads only if you say yes.** Otherwise you get non-personalised ads, which are based on the current context and rough location, though Google may still use the advertising ID to limit repeats and count ads ([Google AdMob help](https://support.google.com/admob/answer/7676680)).

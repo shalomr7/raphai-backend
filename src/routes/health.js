@@ -18,6 +18,7 @@ const { validate, idParam, HttpError, asyncHandler } = require('../utils/http');
 const { today } = require('../utils/dates');
 const summary = require('../services/summary');
 const { hasPlan } = require('../middleware/requirePlan');
+const { FEATURE_TIERS } = require('../utils/plans');
 
 const router = express.Router();
 
@@ -41,8 +42,8 @@ router.get('/targets', asyncHandler(async (req, res) => {
     throw new HttpError(400, 'Please fill your profile first (sex, age, height_cm, weight_kg) using PUT /api/profile');
   }
   const targets = calc.dailyTargets(p);
-  // Body fat % is a Pro feature. Free users get null + body_fat_locked: true.
-  const bodyFatLocked = !(await hasPlan(req.user.id, 'pro'));
+  // Body fat % is a Plus feature (and above). Free users get null + body_fat_locked: true.
+  const bodyFatLocked = !(await hasPlan(req.user.id, FEATURE_TIERS.body_fat));
   const bodyFat = bodyFatLocked ? null : calc.navyBodyFat(p);
   res.json({
     profile_used: {
@@ -54,7 +55,7 @@ router.get('/targets', asyncHandler(async (req, res) => {
     body_fat_pct: bodyFat,
     body_fat_locked: bodyFatLocked,
     body_fat_note: bodyFatLocked
-      ? 'Body fat % is part of Pro.'
+      ? 'Body fat % is part of Plus (and above).'
       : bodyFat == null
       ? 'Add neck_cm and waist_cm (and hip_cm for women) to your profile to get body fat % (US Navy method).'
       : 'US Navy tape-measure estimate. Usually within 3–4% of a lab test.',

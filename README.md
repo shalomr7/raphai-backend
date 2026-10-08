@@ -294,25 +294,37 @@ curl "http://localhost:4000/api/wealth/calculators/sip?monthly=5000&rate=12&year
 | Method | URL | What it does |
 |---|---|---|
 | GET | `/api/subscription` | Your plan and when it ends |
-| POST | `/api/subscription/google/verify` | **Google Play.** After a purchase (or Restore) the app sends `{ "purchaseToken", "productId": "raphai_pro", "basePlanId": "yearly" }`. Answers `{ valid, pending, google, subscription }` |
+| POST | `/api/subscription/google/verify` | **Google Play.** After a purchase (or Restore) the app sends `{ "purchaseToken", "productId": "raphai_plus\|raphai_pro\|raphai_elite", "basePlanId": "monthly\|quarterly\|yearly\|monthly-prepaid" }`. Answers `{ valid, pending, google, subscription }` |
 | POST | `/api/subscription/google/rtdn?secret=...` | **Public.** Google Cloud Pub/Sub pushes Play notifications here |
 | POST | `/api/subscription/cancel` | Go back to Free (409 for a Google Play plan: cancel it in the Play Store) |
 | POST | `/api/subscription/trial` | Start the **14-day free Pro trial** (once per account; 409 if already used) |
-| POST | `/api/subscription/dev-activate` | **Development only.** Turns on a plan without paying `{ "plan": "pro", "period": "monthly" }` |
+| POST | `/api/subscription/dev-activate` | **Development only.** Turns on a plan without paying `{ "plan": "plus\|pro\|elite", "period": "monthly\|quarterly\|yearly\|monthly-prepaid" }` |
 
-| Plan | Monthly | Yearly |
-|---|---|---|
-| Free | ₹0 | ₹0 |
-| Pro | ₹99 | ₹799 |
-| Elite | ₹199 | ₹1,499 |
+| Plan | Monthly | Quarterly | Yearly | Prepaid 1 month |
+|---|---|---|---|---|
+| Free | ₹0 | – | – | – |
+| Plus (`raphai_plus`) | ₹79 | ₹199 | ₹599 | ₹89 |
+| Pro (`raphai_pro`) | ₹199 | ₹499 | ₹1,499 | ₹219 |
+| Elite (`raphai_elite`) | ₹349 | ₹899 | ₹2,499 | ₹379 |
 
-`GET /api/plans` also returns `trial_days: 14` and `best_value_period: "yearly"`.
+Play India prices, GST included. `GET /api/plans` returns all 4 tiers with `prices` per base plan, `base_plans[]` (period, auto-renew, trial days, offers), `limits`, `features`, `yearly_saving_percent`, `best_value: { plan: "pro", base_plan_id: "yearly" }`, the offers, and the old `price_monthly` / `price_yearly` fields for older app versions. The server never checks the price paid, so people who bought Pro/Elite at the old prices (₹99/₹799, ₹199/₹1,499) keep their plan.
 
-**What is free and what is Pro.** Free keeps calories, macros, water, steps, all logs, BMI, expenses, bills, the 50/30/20 suggestion, RaphScore and streaks, today's insights and 7-day trends, and 5 food parses a day. **Pro** unlocks: RaphAi Intelligence (30-day trends, Life patterns, the daily brief, "Your patterns", unlimited food parse), body fat % (on Free, `/api/health/targets` returns `body_fat_pct: null` and `body_fat_locked: true`), unlimited budgets and goals, SIP/EMI calculators, the coach, and HIIT plans (HIIT plans are locked in the phone app).
+**What each plan unlocks** (`src/utils/plans.js`, `FEATURE_TIERS` + `LIMITS`; details in `docs/pricing.md`):
 
-Elite includes everything in Pro. To lock any route behind a plan, add `requirePlan('pro')` (or `'elite'`) after `requireAuth`, the same way `/api/coach` is set up in `src/app.js`.
+| | Free | Plus | Pro | Elite |
+|---|---|---|---|---|
+| Rule-based coach | 5/day (then 402) | unlimited | unlimited | unlimited |
+| AI coach answers (when Gemini is connected) | – | 5/day, Flash-Lite | 15/day, 2.5 Flash | 25/day, 2.5 Flash |
+| Typed food parse | 5/day | 20/day | 50/day | 100/day |
+| AI photo food scan (not built yet) | – | – | 5/day | 6/day |
+| Trends window | 7 days | 30 days | 365 days | 365 days |
+| Body fat %, unlimited budgets/goals, SIP/EMI, HIIT, Life patterns, daily brief | – | yes | yes | yes |
+| "Your patterns" (`/api/insights/profile`) | – | – | yes | yes |
+| Family members (coming soon) | – | – | – | up to 3 |
 
-**Google Play Billing (real payments).** Products in Play Console: `raphai_pro` and `raphai_elite`, each with base plans `monthly` and `yearly`, and a 14-day free-trial offer on each base plan.
+After the daily AI allowance the coach answers with its rules instead of blocking (`engine: "rule_based"`, `ai.limit_reached: true`, `ai.upgrade_to`). No AI model is connected yet (`src/services/aiCoach.js`, `setAiProvider`), so every answer is rule-based today. Every 402 from a limit carries `{ current_plan, upgrade_to, upgrade_to_name, limit }` so the app can offer the right next plan. To lock a route behind a plan, add `requirePlan(FEATURE_TIERS.x)` after `requireAuth`.
+
+**Google Play Billing (real payments).** Products in Play Console: `raphai_plus`, `raphai_pro` and `raphai_elite`, each with base plans `monthly`, `quarterly`, `yearly` (auto-renewing) and `monthly-prepaid` (prepaid, no auto-renew; access ends at the line item's `expiryTime`). Offers: `trial-7d` (monthly + quarterly), `trial-14d` (yearly), `launch-y1` (Pro yearly, ₹999 first year), `winback-3m` (monthly, 50% off 3 months, developer-determined).
 
 1. The phone app buys with Google Play and gets a `purchaseToken`.
 2. It sends the token to `POST /api/subscription/google/verify`. The server asks Google (`purchases.subscriptionsv2.get`) for the real state, saves it in the table `google_play_purchases`, and sets the user's plan, expiry, auto-renew and trial in `subscriptions`.
@@ -331,11 +343,11 @@ Without the Google settings, verify answers **503 "Google Play billing is not co
 |---|---|---|
 | GET | `/api/dashboard?date=` | Home screen: RaphScore, **streaks**, health and wealth summaries |
 | GET | `/api/dashboard/streaks` | Just the streaks |
-| POST | `/api/coach` | **Pro plan.** `{ "question": "What should I do today?", "context"?: "home\|health\|fitness\|wealth" }` |
+| POST | `/api/coach` | **Free: 5/day; paid: unlimited + daily AI allowance.** `{ "question": "What should I do today?", "context"?: "home\|health\|fitness\|wealth" }` |
 
 **Streaks** (`src/services/streaks.js`): `logging.days` = days in a row you logged anything (food, water, steps, workout, sleep, mood, weight or expense). `raph_score.days` = days in a row your RaphScore was 60 or more. If today has nothing yet, the streak counts up to yesterday (`today_done: false`).
 
-**The coach** answers from your real numbers, in a warm, simple tone. It understands: **what should I do today**, **why are my steps low**, **how can I save more this month**, **optimise my day**, **today's nutrition**, **fat loss / belly fat**, **sleep**, **mood support** (sad, stressed, anxious; for distress it always gives **Tele-MANAS 14416** and 112), plus the older **calories left**, **food spend**, **how much to save** and **protein foods**. If it does not understand a question, `context` picks a helpful answer for that screen (home → today's plan, health → nutrition, fitness → steps, wealth → saving). The answer is `{ topic, answer, data, context, guessed_from_context }`.
+**The coach** answers from your real numbers, in a warm, simple tone. It understands: **what should I do today**, **why are my steps low**, **how can I save more this month**, **optimise my day**, **today's nutrition**, **fat loss / belly fat**, **sleep**, **mood support** (sad, stressed, anxious; for distress it always gives **Tele-MANAS 14416** and 112), plus the older **calories left**, **food spend**, **how much to save** and **protein foods**. If it does not understand a question, `context` picks a helpful answer for that screen (home → today's plan, health → nutrition, fitness → steps, wealth → saving). The answer is `{ topic, answer, data, context, guessed_from_context, engine, plan, remaining_today, ai }`.
 
 ```bash
 curl -X POST http://localhost:4000/api/coach -H "Authorization: Bearer $T" -H "Content-Type: application/json" \

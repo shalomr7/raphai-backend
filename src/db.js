@@ -326,7 +326,7 @@ const SCHEMA_SQL = `
   CREATE TABLE IF NOT EXISTS subscriptions (
     user_id    INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
     plan       TEXT NOT NULL DEFAULT 'free',
-    period     TEXT,           -- 'monthly' | 'yearly' | 'trial'
+    period     TEXT,           -- 'monthly' | 'quarterly' | 'yearly' | 'monthly_prepaid' | 'trial'
     status     TEXT NOT NULL DEFAULT 'active',
     expires_at TEXT,           -- ISO date-time, null for free
     trial_used INTEGER NOT NULL DEFAULT 0 -- 1 once the free trial is used
@@ -372,10 +372,10 @@ const SCHEMA_SQL = `
   CREATE TABLE IF NOT EXISTS google_play_purchases (
     purchase_token        TEXT PRIMARY KEY,
     user_id               INTEGER REFERENCES users(id) ON DELETE SET NULL,
-    product_id            TEXT NOT NULL,          -- raphai_pro | raphai_elite
-    base_plan_id          TEXT,                   -- monthly | yearly
+    product_id            TEXT NOT NULL,          -- raphai_plus | raphai_pro | raphai_elite
+    base_plan_id          TEXT,                   -- monthly | quarterly | yearly | monthly-prepaid
     offer_id              TEXT,                   -- e.g. the free-trial offer id
-    plan                  TEXT NOT NULL,          -- pro | elite
+    plan                  TEXT NOT NULL,          -- plus | pro | elite
     period                TEXT,                   -- monthly | yearly
     subscription_state    TEXT NOT NULL,          -- SUBSCRIPTION_STATE_ACTIVE, ..._EXPIRED, ...
     expires_at            TIMESTAMPTZ,

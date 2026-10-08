@@ -7,7 +7,7 @@
 // ------------------------------------------------------------
 
 const db = require('../db');
-const { PLANS } = require('../utils/plans');
+const { PLANS, LIMITS } = require('../utils/plans');
 const { HttpError } = require('../utils/http');
 
 // Find the user's CURRENT plan. An expired paid plan counts as 'free'.
@@ -32,9 +32,28 @@ function requirePlan(minPlan) {
     currentPlan(req.user.id).then((plan) => {
       if (PLANS[plan].rank >= needed.rank) return next();
       // 402 = "Payment Required"
-      next(new HttpError(402, `This feature needs the ${needed.name} plan or higher. You are on ${PLANS[plan].name}.`));
+      next(upgradeError(`This feature needs the ${needed.name} plan or higher. You are on ${PLANS[plan].name}.`, { plan, upgradeTo: minPlan }));
     }, next);
   };
 }
 
-module.exports = { requirePlan, currentPlan, hasPlan };
+// The user's plan id and its daily limits (utils/plans.js LIMITS)
+async function planAndLimits(userId) {
+  const plan = await currentPlan(userId);
+  return { plan, limits: LIMITS[plan] };
+}
+
+// A 402 "Payment Required" error that also tells the app which plan to offer:
+//   { error, current_plan, upgrade_to, upgrade_to_name, limit? }
+function upgradeError(message, { plan = null, upgradeTo = null, limit } = {}) {
+  const e = new HttpError(402, message);
+  e.extra = {
+    current_plan: plan,
+    upgrade_to: upgradeTo,
+    upgrade_to_name: upgradeTo ? PLANS[upgradeTo].name : null,
+    ...(limit !== undefined ? { limit } : {}),
+  };
+  return e;
+}
+
+module.exports = { requirePlan, currentPlan, hasPlan, planAndLimits, upgradeError };
