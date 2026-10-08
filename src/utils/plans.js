@@ -4,15 +4,20 @@
 // "rank" is used to compare plans: elite (2) includes pro (1) includes free (0).
 //
 // What stays FREE forever: all health logs, calories,
-// macros, water, BMI, steps, expenses, bills, 50/30/20 suggestion, RaphScore.
+// macros, water, BMI, steps, expenses, bills, 50/30/20 suggestion, RaphScore,
+// today's insights + 7-day trends, AI food parse (5 a day).
 // What needs PRO: body fat %, unlimited budgets and goals, SIP/EMI
-// calculators, the AI coach, HIIT plans (HIIT plans are locked in the app).
+// calculators, the AI coach, HIIT plans (HIIT plans are locked in the app),
+// RaphAi Intelligence: 30-day trends, Life patterns, daily brief,
+// "Your patterns" profile, unlimited AI food parse.
 // ------------------------------------------------------------
 
 // Free plan limits (Pro and Elite have no limit)
 const FREE_LIMITS = {
   budgets_per_month: 3,
   savings_goals: 2,
+  food_parse_per_day: 5,   // "I ate 2 rotis and dal" -> foods. Unlimited on Pro.
+  trend_days: 7,           // GET /api/insights/trends: Free sees 7 days, Pro 30
 };
 
 // Length of the free trial of Pro (days). One trial per account.
@@ -30,6 +35,8 @@ const PLANS = {
       'Expenses, bills, bill reminders, 50/30/20 suggestion',
       `Up to ${FREE_LIMITS.budgets_per_month} budgets and ${FREE_LIMITS.savings_goals} savings goals`,
       'Daily RaphScore and streaks',
+      "Today's insights, priorities and 7-day trends",
+      `AI food parse (${FREE_LIMITS.food_parse_per_day} a day)`,
     ],
   },
   pro: {
@@ -44,6 +51,11 @@ const PLANS = {
       'SIP and EMI calculators',
       'Raph AI coach',
       'HIIT workout plans',
+      'RaphAi Intelligence',
+      'Trends for 30 days',
+      'Life patterns',
+      'Daily brief',
+      'Unlimited AI food parse',
     ],
   },
   elite: {

@@ -184,6 +184,30 @@ function simpleLog(path, table, rules, afterCreate) {
   }));
 }
 
+// ---------------- SLEEP IMPORT (Health Connect) ----------------
+// POST /api/health/sleep/import { date, minutes, source }
+// Saves the night's sleep from the phone, unless the user already typed
+// it in by hand for that date (a manual entry always wins).
+// Must be defined BEFORE simpleLog('/sleep') so "/sleep/import" is not read as an id.
+router.post('/sleep/import', asyncHandler(async (req, res) => {
+  const b = validate(req.body, {
+    date: { type: 'date' },
+    minutes: { type: 'integer', required: true, min: 0, max: 1440 },
+    source: { type: 'string', oneOf: ['health_connect', 'healthkit', 'wearable'] },
+  });
+  const date = b.date || today();
+  const source = b.source || 'health_connect';
+  const result = await db.tx(async (t) => {
+    const manual = await t.get('SELECT id FROM sleep_logs WHERE user_id = $1 AND date = $2 AND source IS NULL LIMIT 1', [req.user.id, date]);
+    if (manual) return { imported: false, reason: 'manual_entry_exists', date };
+    await t.run('DELETE FROM sleep_logs WHERE user_id = $1 AND date = $2 AND source IS NOT NULL', [req.user.id, date]);
+    const entry = await t.get('INSERT INTO sleep_logs (user_id, date, hours, source) VALUES ($1, $2, $3, $4) RETURNING *',
+      [req.user.id, date, calc.round(b.minutes / 60, 2), source]);
+    return { imported: true, date, entry };
+  });
+  res.json(result);
+}));
+
 simpleLog('/water', 'water_logs', { ml: { type: 'number', required: true, min: 10, max: 5000 } });
 simpleLog('/sleep', 'sleep_logs', {
   hours: { type: 'number', required: true, min: 0, max: 24 },

@@ -392,6 +392,44 @@ const SCHEMA_SQL = `
   ALTER TABLE google_play_purchases ADD COLUMN IF NOT EXISTS revoked_at TIMESTAMPTZ;
   CREATE INDEX IF NOT EXISTS google_play_purchases_user ON google_play_purchases (user_id);
 
+  -- ---------------- RAPHAI INTELLIGENCE (v2, Oct 2026) ----------------
+  -- Sleep can be imported from Health Connect. source NULL = typed in by the user.
+  ALTER TABLE sleep_logs ADD COLUMN IF NOT EXISTS source TEXT;
+
+  -- Daily activity from the phone (Health Connect or the pedometer). One row per user per day.
+  CREATE TABLE IF NOT EXISTS activity_daily (
+    user_id        INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    date           TEXT NOT NULL,
+    steps          INTEGER,
+    distance_m     DOUBLE PRECISION,
+    active_kcal    DOUBLE PRECISION,
+    active_minutes INTEGER,
+    resting_hr     INTEGER,
+    source         TEXT,           -- health_connect | pedometer
+    updated_at     TEXT NOT NULL DEFAULT ${NOW_TEXT},
+    PRIMARY KEY (user_id, date)
+  );
+
+  -- RaphScore saved per day, so we can explain how it changed vs yesterday.
+  -- overall is NULL when there was not enough data that day.
+  CREATE TABLE IF NOT EXISTS raphscore_daily (
+    user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    date        TEXT NOT NULL,
+    overall     INTEGER,
+    areas       JSONB NOT NULL DEFAULT '{}'::jsonb,  -- { "health": 72, "fitness": null, ... }
+    computed_at TEXT NOT NULL DEFAULT ${NOW_TEXT},
+    PRIMARY KEY (user_id, date)
+  );
+
+  -- How often a user used a limited feature on a day (e.g. AI food parse: 5 a day on Free)
+  CREATE TABLE IF NOT EXISTS feature_usage (
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    date    TEXT NOT NULL,
+    feature TEXT NOT NULL,
+    count   INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (user_id, date, feature)
+  );
+
   -- Indexes that make the common "my rows for this date" lookups fast
   CREATE INDEX IF NOT EXISTS food_logs_user_date ON food_logs (user_id, date);
   CREATE INDEX IF NOT EXISTS workouts_user_date ON workouts (user_id, date);
@@ -400,6 +438,7 @@ const SCHEMA_SQL = `
   CREATE INDEX IF NOT EXISTS mood_logs_user_date ON mood_logs (user_id, date);
   CREATE INDEX IF NOT EXISTS weight_logs_user_date ON weight_logs (user_id, date);
   CREATE INDEX IF NOT EXISTS expenses_user_date ON expenses (user_id, date);
+  CREATE INDEX IF NOT EXISTS step_logs_user_date ON step_logs (user_id, date);
 `;
 
 // ------------------------------------------------------------

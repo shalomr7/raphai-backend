@@ -28,4 +28,22 @@ function daysInMonth(month) {
   return new Date(y, m, 0).getDate();
 }
 
-module.exports = { today, thisMonth, dayOfMonth, daysInMonth };
+// Add n days to a 'YYYY-MM-DD' date (n can be negative)
+function addDays(date, n) {
+  const d = new Date(`${date}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+// Hour of the day (0-23) right now in India (APP_TZ)
+function hourNow() {
+  const h = new Intl.DateTimeFormat('en-GB', { hour: 'numeric', hourCycle: 'h23', timeZone: TZ() }).format(new Date());
+  return Number(h) % 24;
+}
+
+// Day of the week for a 'YYYY-MM-DD' date: 0 = Sunday ... 6 = Saturday
+function weekday(date) {
+  return new Date(`${date}T00:00:00Z`).getUTCDay();
+}
+
+module.exports = { today, thisMonth, dayOfMonth, daysInMonth, addDays, hourNow, weekday };

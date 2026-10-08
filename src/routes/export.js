@@ -29,6 +29,8 @@ const USER_TABLES = {
   bills: 'bills',
   subscription: 'subscriptions',
   payments: 'payments',
+  activity_daily: 'activity_daily',
+  raphscore_daily: 'raphscore_daily',
 };
 
 // Row order per table (default: ORDER BY id, oldest first)
@@ -38,6 +40,8 @@ const EXPORT_ORDER = {
   subscriptions: '',
   food_favourites: ' ORDER BY food_id',
   step_logs: ' ORDER BY date',
+  activity_daily: ' ORDER BY date',
+  raphscore_daily: ' ORDER BY date',
   budgets: ' ORDER BY month, category',
 };
 

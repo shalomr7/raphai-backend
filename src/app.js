@@ -23,6 +23,9 @@ const dashboardRoutes = require('./routes/dashboard');
 const coachRoutes = require('./routes/coach');
 const exportRoutes = require('./routes/export');
 const legalRoutes = require('./routes/legal');
+const insightsRoutes = require('./routes/insights');
+const foodRoutes = require('./routes/food');
+const activityRoutes = require('./routes/activity');
 
 function createApp() {
   const app = express();
@@ -62,6 +65,10 @@ function createApp() {
   app.use('/api/subscription', requireAuth, subRouter);
   app.use('/api/dashboard', requireAuth, dashboardRoutes);
   app.use('/api/export', requireAuth, exportRoutes);
+  // RaphAi Intelligence (each route checks Free vs Pro itself)
+  app.use('/api/insights', requireAuth, insightsRoutes);
+  app.use('/api/food', requireAuth, foodRoutes);       // POST /api/food/parse
+  app.use('/api/activity', requireAuth, activityRoutes);
 
   // ---- Pro plan (or higher) needed ----
   app.use('/api/coach', requireAuth, requirePlan('pro'), coachRoutes);

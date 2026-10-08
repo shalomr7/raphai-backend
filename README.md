@@ -30,7 +30,7 @@ Database ready (tables checked, foods seeded)
 RaphAi API running on http://localhost:4000
 ```
 
-The server makes all the tables and adds the 43 foods by itself when it starts.
+The server makes all the tables and adds the 48 foods by itself when it starts.
 This is safe to run again and again: it never deletes or doubles anything.
 
 Open http://localhost:4000/api/health-check in a browser. You should see `{"ok":true,...}`.
@@ -43,7 +43,7 @@ npm test               # same as: node test/smoke.js
 
 It uses the database in `DATABASE_URL` (or `TEST_DATABASE_URL` if you set it). It makes a
 fresh, empty **schema** (a separate folder inside the database) just for the test, signs up a
-user, calls the main endpoints, prints `SMOKE TEST PASSED (137 checks)`, and then deletes that
+user, calls the main endpoints, prints `SMOKE TEST PASSED (228 checks)`, and then deletes that
 schema. Your real tables and data are not touched.
 
 **Start again with an empty database:** in Supabase, open the SQL Editor and run
@@ -63,7 +63,7 @@ raphai-backend/
 │   ├── app.js            Connects everything: CORS, JSON, all routes, error handler
 │   ├── db.js             Connects to Postgres, creates all tables, adds the foods
 │   ├── seed/
-│   │   └── foods.js      43 common Indian foods with calories, protein, carbs, fat
+│   │   └── foods.js      48 common Indian foods with calories, protein, carbs, fat
 │   ├── middleware/
 │   │   ├── auth.js       Checks the login token (requireAuth) and makes tokens
 │   │   ├── requirePlan.js  Blocks a feature unless the user has the right plan, e.g. requirePlan('pro')
@@ -76,7 +76,10 @@ raphai-backend/
 │   ├── services/
 │   │   ├── googlePlay.js Google Play Billing: asks Google for a purchase's state, saves it, sets the plan
 │   │   ├── summary.js    Adds up a user's day (health) and month (money), and works out the scores
-│   └── streaks.js    Logging streak and RaphScore streak
+│   │   ├── streaks.js    Logging streak and RaphScore streak
+│   │   ├── intelligence.js  RaphAi Intelligence: 6-area RaphScore, priorities, nutrition safety,
+│   │   │                    hydration advice, budget left, trends, Life Graph patterns, brief
+│   │   └── foodParser.js    Reads "2 rotis and half katori dal" and finds the foods
 │   └── routes/           One file per part of the API
 │       ├── auth.js       Register, login, me
 │       ├── profile.js    Get and change your profile
@@ -87,7 +90,10 @@ raphai-backend/
 │       ├── googlePlay.js    Google Play Billing: /api/subscription/google/verify and /rtdn
 │       ├── dashboard.js  The home screen data, RaphScore and streaks
 │       ├── export.js     GET /api/export: all your data as JSON
-│       └── coach.js      Simple rule-based coach (Pro plan)
+│       ├── insights.js   /api/insights/today, trends, patterns, brief, profile
+│       ├── food.js       POST /api/food/parse (food from a sentence)
+│       ├── activity.js   /api/activity/daily (Health Connect / pedometer)
+│       └── coach.js      Rule-based personal coach (Pro plan)
 └── test/
     └── smoke.js          Quick test of the main features
 ```
@@ -235,7 +241,7 @@ curl -X POST http://localhost:4000/api/health/workouts -H "Authorization: Bearer
 | DELETE | `/api/food-logs/:id` | Delete |
 | POST | `/api/food-logs/repeat` | Repeat a meal `{ "meal": "breakfast", "from_date"?, "to_date"? }`. Default: yesterday's meal copied to today |
 
-**Verified foods:** the 43 seeded foods have `verified: true`. Foods that users add with `POST /api/foods` have `verified: false`.
+**Verified foods:** the 48 seeded foods have `verified: true`. Foods that users add with `POST /api/foods` have `verified: false`.
 
 The meals are `breakfast`, `lunch`, `dinner` and `snack`.
 
@@ -300,7 +306,7 @@ curl "http://localhost:4000/api/wealth/calculators/sip?monthly=5000&rate=12&year
 
 `GET /api/plans` also returns `trial_days: 14` and `best_value_period: "yearly"`.
 
-**What is free and what is Pro.** Free keeps calories, macros, water, steps, all logs, BMI, expenses, bills, the 50/30/20 suggestion, RaphScore and streaks. **Pro** unlocks: body fat % (on Free, `/api/health/targets` returns `body_fat_pct: null` and `body_fat_locked: true`), unlimited budgets and goals, SIP/EMI calculators, the coach, and HIIT plans (HIIT plans are locked in the phone app).
+**What is free and what is Pro.** Free keeps calories, macros, water, steps, all logs, BMI, expenses, bills, the 50/30/20 suggestion, RaphScore and streaks, today's insights and 7-day trends, and 5 food parses a day. **Pro** unlocks: RaphAi Intelligence (30-day trends, Life patterns, the daily brief, "Your patterns", unlimited food parse), body fat % (on Free, `/api/health/targets` returns `body_fat_pct: null` and `body_fat_locked: true`), unlimited budgets and goals, SIP/EMI calculators, the coach, and HIIT plans (HIIT plans are locked in the phone app).
 
 Elite includes everything in Pro. To lock any route behind a plan, add `requirePlan('pro')` (or `'elite'`) after `requireAuth`, the same way `/api/coach` is set up in `src/app.js`.
 
@@ -322,17 +328,44 @@ Without the Google settings, verify answers **503 "Google Play billing is not co
 |---|---|---|
 | GET | `/api/dashboard?date=` | Home screen: RaphScore, **streaks**, health and wealth summaries |
 | GET | `/api/dashboard/streaks` | Just the streaks |
+| POST | `/api/coach` | **Pro plan.** `{ "question": "What should I do today?", "context"?: "home\|health\|fitness\|wealth" }` |
 
 **Streaks** (`src/services/streaks.js`): `logging.days` = days in a row you logged anything (food, water, steps, workout, sleep, mood, weight or expense). `raph_score.days` = days in a row your RaphScore was 60 or more. If today has nothing yet, the streak counts up to yesterday (`today_done: false`).
-| POST | `/api/coach` | **Pro plan.** `{ "question": "calories left?" }` |
 
-The coach understands questions about **calories left**, **food spend**, **how much to save** and **protein foods**.
+**The coach** answers from your real numbers, in a warm, simple tone. It understands: **what should I do today**, **why are my steps low**, **how can I save more this month**, **optimise my day**, **today's nutrition**, **fat loss / belly fat**, **sleep**, **mood support** (sad, stressed, anxious; for distress it always gives **Tele-MANAS 14416** and 112), plus the older **calories left**, **food spend**, **how much to save** and **protein foods**. If it does not understand a question, `context` picks a helpful answer for that screen (home → today's plan, health → nutrition, fitness → steps, wealth → saving). The answer is `{ topic, answer, data, context, guessed_from_context }`.
 
 ```bash
 curl -X POST http://localhost:4000/api/coach -H "Authorization: Bearer $T" -H "Content-Type: application/json" \
   -d '{"question":"what is my food spend this month?"}'
 # -> { "topic": "food_spend", "answer": "This month you spent ₹3,700 on food (...)" }
 ```
+
+### RaphAi Intelligence
+Rule-based (no outside AI), but every answer comes from your own data. **Missing data is never shown as 0**: it is `null` with `status: "no_data"` and a "Start tracking ..." note.
+
+| Method | URL | Plan | What it does |
+|---|---|---|---|
+| GET | `/api/insights/today` | Free + Pro | RaphScore with 6 areas and why it changed vs yesterday, top 3 priorities, one insight, nutrition safety, hydration advice, budget left |
+| GET | `/api/insights/trends?days=7` | Free: 7, Pro: 7 or 30 | Daily series (steps, sleep_min, mood, water_ml, spend, weight, kcal), averages vs the period before, and plain-English insights. `days=30` on Free → 402 |
+| GET | `/api/insights/patterns` | Pro (Free gets `{ "locked": true }`) | "Life Graph": sleep ↔ spending, exercise ↔ mood, sleep ↔ mood, weekend share of spending, food delivery after poor sleep |
+| GET | `/api/insights/brief` | Pro (Free gets `{ "locked": true }`) | Daily briefing: health, fitness and money sections + one priority |
+| GET | `/api/insights/profile` | Pro (Free gets `{ "locked": true }`) | "Your patterns": 30-day averages (sleep, steps, protein, mood), savings rate, traits |
+| POST | `/api/food/parse` | Free: 5 a day, Pro: unlimited | `{ "text": "I ate 2 eggs, 2 rotis and a glass of milk" }` → foods with `food_id`, `qty`, `unit`, `servings`, scaled kcal/protein/carbs/fat, and totals. The 6th parse in a day on Free → 402 |
+| POST | `/api/activity/daily` | Free + Pro | `{ "date", "steps", "distance_m", "active_kcal", "active_minutes", "resting_hr"?, "source": "health_connect\|pedometer" }`. One row per day (sending again updates it). Also updates your steps |
+| GET | `/api/activity/daily?days=7` | Free + Pro | The last N days (1 to 90) as an array |
+| POST | `/api/health/sleep/import` | Free + Pro | `{ "date", "minutes": 438, "source": "health_connect" }`. Saves the night's sleep unless you typed it in by hand for that date (`imported: false` then) |
+
+**RaphScore (v2, in `/api/insights/today`)** has 6 areas: **Health** (calories and protein vs your targets, water), **Fitness** (steps vs your goal, plus workouts), **Mind** (mood), **Wealth** (savings rate after bills, bills paid, budgets kept), **Habits** (how many of the last 7 days you logged, and how many kinds of things), **Recovery** (sleep hours and quality, resting heart rate). Today's numbers are compared with how much of the day has passed (Indian time), so a morning is not scored like a full day. The overall score is the weighted average of the areas that have data (weights: health 0.2, fitness 0.2, mind 0.15, wealth 0.2, habits 0.1, recovery 0.15), and it is `null` when fewer than 2 areas have data. Labels: 70+ Good, 45+ Okay, below 45 Needs care. Today's and yesterday's scores are saved in the table `raphscore_daily`, and the `explanation` says which areas moved. (The older `/api/dashboard` RaphScore is unchanged.)
+
+**Nutrition safety:** deficit = TDEE − your calorie target. More than 25% of TDEE is `aggressive`, more than 35% is `very_aggressive`, with a kind message and a gentler `suggested_target` that is never below 1,200 kcal (women) or 1,500 kcal (men).
+
+**Budget:** `remaining` = income − spent this month − unpaid bills due this month. `savings_rate` = remaining ÷ income.
+
+**Hydration:** the advice depends on the time of day in India (for example "Have 500 ml now and another 500 ml before 7 PM").
+
+**Patterns** need at least 14 days of data (otherwise `enough_data: false` and `days_needed`), and each group in a pattern needs at least 5 days, or the pattern is not shown. Today is left out because it is not finished.
+
+**Food parse** understands commas and "and", number words (two, half, one and a half, dedh), and units: katori, plate, roti/chapati, piece, glass, cup, bowl, slice, spoon, tsp/tbsp, g and ml. It fuzzy-matches the foods table (also common spellings like "chapathi", "daal", "biriyani"). To save a parsed item, send `POST /api/food-logs { food_id, servings, meal }`.
 
 ---
 

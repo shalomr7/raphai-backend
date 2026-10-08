@@ -58,4 +58,11 @@ module.exports = [
   { name: 'Apple', serving: '1 medium', kcal: 95, protein_g: 0.5, carbs_g: 25, fat_g: 0.3 },
   { name: 'Peanuts', serving: '30 g', kcal: 170, protein_g: 7.5, carbs_g: 5, fat_g: 14 },
   { name: 'Whey Protein', serving: '1 scoop (30 g)', kcal: 120, protein_g: 24, carbs_g: 3, fat_g: 1.5 },
+
+  // Added Oct 2026 (so the food parser understands "slice", "spoon", coffee)
+  { name: 'Bread (white)', serving: '1 slice (28 g)', kcal: 70, protein_g: 2.4, carbs_g: 13, fat_g: 0.9 },
+  { name: 'Filter Coffee (with milk and sugar)', serving: '1 cup', kcal: 80, protein_g: 2, carbs_g: 11, fat_g: 3 },
+  { name: 'Ghee', serving: '1 tsp (5 g)', kcal: 45, protein_g: 0, carbs_g: 0, fat_g: 5 },
+  { name: 'Sugar', serving: '1 tsp (5 g)', kcal: 20, protein_g: 0, carbs_g: 5, fat_g: 0 },
+  { name: 'Curd Rice', serving: '1 katori (200 g)', kcal: 210, protein_g: 6, carbs_g: 34, fat_g: 5.5 },
 ];

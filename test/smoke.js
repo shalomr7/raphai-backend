@@ -502,6 +502,12 @@ async function run() {
   check('RTDN on hold (payment failed) -> no access', r.body.subscription.active_plan === 'free', r.body);
   token = mainToken;
 
+  // =====================================================================
+  //  RaphAi Intelligence (v2)
+  // =====================================================================
+  await intelligenceTests({ D, mainToken });
+  token = mainToken;
+
   console.log('\nYour data: export + delete account');
   r = await api('GET', '/api/export');
   check('export has your data and no password', r.status === 200 && r.body.user.email === 'ravi@example.com' && r.body.expenses.length >= 2
@@ -513,6 +519,260 @@ async function run() {
   token = null;
   r = await api('POST', '/api/auth/login', { email: 'ravi@example.com', password: 'secret123' });
   check('deleted account cannot log in', r.status === 401, r.body);
+}
+
+// ---------------------------------------------------------------------
+// RaphAi Intelligence tests: insights, trends, patterns, brief, profile,
+// food parse, activity, sleep import, coach intents, Free vs Pro gating.
+// ---------------------------------------------------------------------
+const intel = require('../src/services/intelligence');
+const { addDays } = require('../src/utils/dates');
+
+// Every path in a JSON value where the value is exactly 0
+function zeroPaths(v, path = '$', out = []) {
+  if (v === 0) out.push(path);
+  else if (Array.isArray(v)) v.forEach((x, i) => zeroPaths(x, `${path}[${i}]`, out));
+  else if (v && typeof v === 'object') for (const [k, x] of Object.entries(v)) zeroPaths(x, `${path}.${k}`, out);
+  return out;
+}
+async function newUser(name, email) {
+  const r = await api('POST', '/api/auth/register', { name, email, password: 'secret123' });
+  token = r.body.token;
+  return { token, id: r.body.user.id };
+}
+
+// SMOKE_SHOW=1 npm test prints the intelligence answers so you can read them
+const show = (label, v) => { if (process.env.SMOKE_SHOW) console.log(`      -> ${label}:`, JSON.stringify(v, null, 1)); };
+
+async function intelligenceTests({ D, mainToken }) {
+  console.log('\nRaphAi Intelligence: nutrition safety rules');
+  let n = intel.nutritionSafety({ tdee: 2633, target: 2083, sex: 'male' });
+  check('deficit 21% -> ok (no suggested target)', n.safety === 'ok' && n.deficit === 550 && n.deficit_pct === 21 && n.suggested_target === null, n);
+  n = intel.nutritionSafety({ tdee: 2633, target: 1808, sex: 'male' });
+  check('deficit 31% -> aggressive, kind message', n.safety === 'aggressive' && /energy, hunger and progress/.test(n.message) && /restrict too hard/.test(n.message), n);
+  n = intel.nutritionSafety({ tdee: 2798, target: 1698, sex: 'male' });
+  check('deficit 39% -> very_aggressive (contract example)', n.safety === 'very_aggressive' && n.deficit === 1100 && n.deficit_pct === 39, n);
+  n = intel.nutritionSafety({ tdee: 1300, target: 800, sex: 'female' });
+  check('women: never suggest below 1,200 kcal', n.safety === 'very_aggressive' && n.suggested_target === 1200, n);
+  n = intel.nutritionSafety({ tdee: 1800, target: 1100, sex: 'male' });
+  check('men: never suggest below 1,500 kcal', n.suggested_target === 1500, n);
+  n = intel.nutritionSafety({ tdee: 2200, target: 2500, sex: 'female' });
+  check('surplus (gain) -> ok', n.safety === 'ok' && n.deficit === -300, n);
+
+  console.log('\nRaphAi Intelligence: hydration by time of day (Asia/Kolkata)');
+  let h = intel.hydrationAdvice({ goal_ml: 2800, drunk_ml: 1600, hour: 15 });
+  check('3 PM, 1.6 of 2.8 L -> behind 1200, advice before 5 PM', h.behind_ml === 1200 && /before 5 PM/.test(h.message), h);
+  h = intel.hydrationAdvice({ goal_ml: 2800, drunk_ml: 200, hour: 9 });
+  check('9 AM -> checkpoint 1 PM', /before 1 PM/.test(h.message) && h.status === 'behind', h);
+  h = intel.hydrationAdvice({ goal_ml: 2800, drunk_ml: 600, hour: 17 });
+  check('5 PM, far behind -> 500 ml now, before 7 PM', /^Have 500 ml now/.test(h.message) && /before 7 PM/.test(h.message), h);
+  h = intel.hydrationAdvice({ goal_ml: 2800, drunk_ml: 1000, hour: 22 });
+  check('10 PM -> small glass, not a lot before bed', /before bed/.test(h.message), h);
+  h = intel.hydrationAdvice({ goal_ml: 2800, drunk_ml: null, hour: 11 });
+  check('no water logged -> drunk null, status no_data (not 0)', h.drunk_ml === null && h.behind_ml === null && h.status === 'no_data' && /Start tracking/.test(h.message), h);
+  h = intel.hydrationAdvice({ goal_ml: 2800, drunk_ml: 3000, hour: 18 });
+  check('goal reached -> done', h.status === 'done', h);
+
+  console.log('\nRaphAi Intelligence: score maths');
+  check('overall null with fewer than 2 areas', intel.combineAreas({ health: 80, fitness: null, mind: null, wealth: null, habits: null, recovery: null }) === null);
+  check('overall = renormalised weighted average', intel.combineAreas({ health: 80, fitness: null, mind: null, wealth: 60, habits: null, recovery: null }) === 70);
+  const ex = intel.explainChange({ overall: 60, scores: { health: 50, fitness: 40, mind: 70, wealth: 80, habits: 90, recovery: 70 } },
+    { overall: 66, scores: { health: 70, fitness: 60, mind: 70, wealth: 80, habits: 90, recovery: 70 } });
+  check('explanation names the areas that dropped', ex.delta === -6 && /dropped 6 points/.test(ex.explanation) && /activity/.test(ex.explanation) && /food & water/.test(ex.explanation), ex);
+  const ex2 = intel.explainChange({ overall: 70, scores: { recovery: 90, mind: 70 } }, { overall: 64, scores: { recovery: 70, mind: 70 } });
+  check('explanation for a rise', ex2.delta === 6 && /rose 6 points/.test(ex2.explanation) && /sleep/.test(ex2.explanation), ex2);
+
+  console.log('\nRaphAi Intelligence: empty-data user (Free) never gets fake zeros');
+  await newUser('Esha Rao', 'esha@example.com');
+  let r = await api('GET', '/api/insights/today');
+  check('GET /api/insights/today (empty) -> 200', r.status === 200 && r.body.name === 'Esha' && ['Good morning', 'Good afternoon', 'Good evening'].includes(r.body.greeting), r.body);
+  check('empty: overall null, "Not enough data", delta null', r.body.raphscore.overall === null && r.body.raphscore.label === 'Not enough data' && r.body.raphscore.delta === null && r.body.raphscore.explanation.length > 10, r.body.raphscore);
+  check('empty: 6 areas, all null + no_data + a note', r.body.raphscore.areas.length === 6
+    && r.body.raphscore.areas.every((a) => a.score === null && a.status === 'no_data' && /Start|Add|Log/.test(a.note))
+    && r.body.raphscore.areas.map((a) => a.key).join() === 'health,fitness,mind,wealth,habits,recovery', r.body.raphscore.areas);
+  check('empty: nutrition and budget are null, hydration not tracked', r.body.nutrition === null && r.body.budget === null && r.body.hydration.drunk_ml === null && r.body.insight === null, r.body);
+  check('empty: priorities are at most 3', Array.isArray(r.body.priorities) && r.body.priorities.length <= 3, r.body.priorities);
+  check('empty: no 0 anywhere in /today', zeroPaths(r.body).length === 0, zeroPaths(r.body));
+  r = await api('GET', '/api/insights/trends?days=7');
+  check('GET /api/insights/trends (empty) -> all null, 7 days', r.status === 200 && r.body.days === 7 && r.body.series.steps.length === 7
+    && Object.values(r.body.series).every((s) => s.every((p) => p.value === null)) && Object.values(r.body.summary).every((v) => v === null) && r.body.insights.length === 0, r.body);
+  check('empty: no 0 anywhere in /trends', zeroPaths(r.body).length === 0, zeroPaths(r.body));
+
+  console.log('\nRaphAi Intelligence: Free vs Pro gating');
+  r = await api('GET', '/api/insights/trends?days=30');
+  check('Free: 30-day trends -> 402', r.status === 402, r.body);
+  r = await api('GET', '/api/insights/trends?days=14');
+  check('trends days must be 7 or 30 -> 400', r.status === 400, r.body);
+  for (const p of ['patterns', 'brief', 'profile']) {
+    r = await api('GET', `/api/insights/${p}`);
+    check(`Free: /api/insights/${p} -> { locked: true }`, r.status === 200 && r.body.locked === true, r.body);
+  }
+  r = await api('POST', '/api/coach', { question: 'what should I do today?' });
+  check('Free: coach still Pro -> 402', r.status === 402, r.body);
+  for (let i = 1; i <= 5; i++) {
+    r = await api('POST', '/api/food/parse', { text: '2 idli' });
+    if (r.status !== 200) break;
+  }
+  check('Free: 5 food parses a day allowed', r.status === 200 && r.body.usage.used === 5 && r.body.usage.remaining === 0, r.body);
+  r = await api('POST', '/api/food/parse', { text: '2 idli' });
+  check('Free: 6th food parse -> 402', r.status === 402, r.body);
+  r = await api('GET', '/api/plans');
+  const proFeatures = r.body.plans.find((p) => p.id === 'pro').features.join('|');
+  check('plans: Pro lists the new intelligence features', ['RaphAi Intelligence', 'Trends for 30 days', 'Life patterns', 'Daily brief', 'Unlimited AI food parse'].every((f) => proFeatures.includes(f)), proFeatures);
+  check('plans: Free lists AI food parse (5 a day)', r.body.plans.find((p) => p.id === 'free').features.join('|').includes('AI food parse (5 a day)'), r.body.plans[0]);
+
+  // Nutrition safety through the API: woman, 1 kg/week -> target clamped to 1,200 = aggressive deficit
+  await api('PUT', '/api/profile', { sex: 'female', age: 30, height_cm: 160, weight_kg: 70, activity_factor: 1.2, goal: 'lose', pace_kg_week: 1 });
+  r = await api('GET', '/api/insights/today');
+  check('API nutrition: TDEE 1667, target 1200, aggressive, suggested >= 1200', r.body.nutrition && r.body.nutrition.tdee === 1667 && r.body.nutrition.target === 1200
+    && r.body.nutrition.safety === 'aggressive' && r.body.nutrition.suggested_target >= 1200, r.body.nutrition);
+
+  console.log('\nRaphAi Intelligence: main user (Pro) with real data');
+  token = mainToken;
+  r = await api('GET', '/api/insights/today');
+  const t = r.body;
+  show('insights/today', t);
+  check('GET /api/insights/today -> score 0-100 with label', r.status === 200 && t.raphscore.overall >= 0 && t.raphscore.overall <= 100 && ['Good', 'Okay', 'Needs care'].includes(t.raphscore.label), t.raphscore);
+  check('today: delta vs yesterday + explanation', typeof t.raphscore.delta === 'number' && /point|steady/.test(t.raphscore.explanation), t.raphscore);
+  check('today: tracked areas scored, untracked ones explain themselves', t.raphscore.areas.find((a) => a.key === 'recovery').status === 'ok'
+    && t.raphscore.areas.every((a) => (a.score === null) === (a.status === 'no_data')), t.raphscore.areas);
+  check('today: nutrition 21% deficit is ok', t.nutrition.safety === 'ok' && t.nutrition.deficit === 550 && t.nutrition.deficit_pct === 21, t.nutrition);
+  check('today: hydration from real water log', t.hydration.drunk_ml === 750 && t.hydration.goal_ml > 2000 && typeof t.hydration.message === 'string', t.hydration);
+  check('today: budget remaining = income - spent - unpaid bills', t.budget.income === 60000 && t.budget.remaining === t.budget.income - t.budget.spent - (t.budget.upcoming_bills || 0)
+    && typeof t.budget.savings_rate === 'number', t.budget);
+  check('today: priorities ranked, max 3, with routes', t.priorities.length <= 3 && t.priorities.every((p, i) => p.rank === i + 1 && p.route.startsWith('/(tabs)/')), t.priorities);
+  check('today: an insight from the data', t.insight && typeof t.insight.text === 'string', t.insight);
+  const saved = await db.all('SELECT date, overall FROM raphscore_daily WHERE user_id = (SELECT id FROM users WHERE email = $1) ORDER BY date', ['ravi@example.com']);
+  check('raphscore_daily stores today and yesterday', saved.length === 2 && saved[1].date === D && saved[1].overall === t.raphscore.overall, saved);
+
+  r = await api('GET', '/api/insights/trends?days=30');
+  check('Pro: 30-day trends', r.status === 200 && r.body.days === 30 && r.body.series.kcal.length === 30, r.body.summary);
+  r = await api('GET', '/api/insights/trends');
+  check('trends: today steps + averages', r.body.series.steps[6].date === D && r.body.series.steps[6].value === 6500 && r.body.summary.steps_avg === 6500
+    && r.body.insights.some((s) => s.includes('6,500 steps')), r.body);
+  r = await api('GET', '/api/insights/brief');
+  show('brief', r.body);
+  check('GET /api/insights/brief -> health, fitness, money + priority', r.status === 200 && r.body.date === D
+    && r.body.sections.map((s) => s.area).join() === 'health,fitness,money' && r.body.sections.every((s) => s.text.length > 10) && r.body.priority.length > 5, r.body);
+  r = await api('GET', '/api/insights/profile');
+  check('GET /api/insights/profile -> averages + traits', r.status === 200 && r.body.steps_avg === 6500 && r.body.sleep_avg_min === 450 && Array.isArray(r.body.traits), r.body);
+  r = await api('GET', '/api/insights/patterns');
+  check('patterns: not enough data yet -> days_needed', r.status === 200 && r.body.enough_data === false && r.body.days_needed > 0 && r.body.patterns.length === 0, r.body);
+
+  console.log('\nRaphAi Intelligence: activity + sleep import');
+  r = await api('POST', '/api/activity/daily', { date: D, steps: 7200, distance_m: 5000, active_kcal: 300, active_minutes: 45, resting_hr: 64, source: 'health_connect' });
+  check('POST /api/activity/daily upserts', r.status === 200 && r.body.steps === 7200 && r.body.resting_hr === 64, r.body);
+  r = await api('POST', '/api/activity/daily', { date: D, steps: 7300, source: 'health_connect' });
+  check('activity upsert keeps other fields', r.body.steps === 7300 && r.body.distance_m === 5000, r.body);
+  r = await api('GET', `/api/health/steps?date=${D}`);
+  check('activity also updates steps', r.body.steps[0].steps === 7300, r.body);
+  r = await api('GET', '/api/activity/daily?days=7');
+  check('GET /api/activity/daily?days=7 -> array', Array.isArray(r.body) && r.body.length === 1 && r.body[0].date === D, r.body);
+  r = await api('POST', '/api/activity/daily', { steps: 10, source: 'fitbit' });
+  check('activity: unknown source -> 400', r.status === 400, r.body);
+  r = await api('POST', '/api/health/sleep/import', { date: D, minutes: 400, source: 'health_connect' });
+  check('sleep import skipped when a manual entry exists', r.status === 200 && r.body.imported === false, r.body);
+  const yday = addDays(D, -1);
+  r = await api('POST', '/api/health/sleep/import', { date: yday, minutes: 438, source: 'health_connect' });
+  check('sleep import saves minutes as hours', r.body.imported === true && r.body.entry.hours === 7.3, r.body);
+  r = await api('POST', '/api/health/sleep/import', { date: yday, minutes: 450, source: 'health_connect' });
+  r = await api('GET', `/api/health/sleep?date=${yday}`);
+  check('sleep import again replaces (no duplicates)', r.body.entries.length === 1 && r.body.entries[0].hours === 7.5, r.body);
+
+  console.log('\nRaphAi Intelligence: food parser');
+  r = await api('POST', '/api/food/parse', { text: 'I ate 2 eggs, 2 rotis and a glass of milk' });
+  const it = r.body.items || [];
+  check('parse: 3 items found', r.status === 200 && it.length === 3 && it.every((i) => i.matched && i.food_id), r.body);
+  check('parse: 2 eggs = 156 kcal', it[0].name === 'Egg (boiled)' && it[0].qty === 2 && it[0].unit === 'piece' && it[0].kcal === 156 && it[0].servings === 2, it[0]);
+  check('parse: 2 rotis = 240 kcal', it[1].name === 'Roti / Chapati' && it[1].kcal === 240, it[1]);
+  check('parse: a glass of milk = 145 kcal', it[2].name === 'Milk (toned)' && it[2].qty === 1 && it[2].unit === 'glass' && it[2].kcal === 145, it[2]);
+  check('parse: totals 541 kcal', r.body.totals.kcal === 541 && r.body.totals.protein === 26, r.body.totals);
+  check('Pro: food parse unlimited', r.body.usage.limit === null, r.body.usage);
+  r = await api('POST', '/api/food/parse', { text: '1 plate chicken biryani' });
+  check('parse: 1 plate chicken biryani = 500 kcal', r.body.items.length === 1 && r.body.items[0].name === 'Chicken Biryani' && r.body.items[0].unit === 'plate' && r.body.items[0].kcal === 500, r.body);
+  r = await api('POST', '/api/food/parse', { text: 'half katori dal' });
+  check('parse: half katori dal = 75 kcal', r.body.items[0].name === 'Dal (toor/moong)' && r.body.items[0].qty === 0.5 && r.body.items[0].unit === 'katori' && r.body.items[0].kcal === 75 && r.body.items[0].servings === 0.5, r.body);
+  r = await api('POST', '/api/food/parse', { text: 'two chapatis with half a bowl of curd, 200g paneer & 1 cup chai' });
+  check('parse: number words, bowl, grams, cup', r.body.items.length === 4 && r.body.items[0].qty === 2 && r.body.items[1].name === 'Curd / Dahi'
+    && r.body.items[2].name === 'Paneer' && r.body.items[2].kcal === 530 && r.body.items[3].name.startsWith('Masala Chai'), r.body.items);
+  r = await api('POST', '/api/food/parse', { text: 'chiken biriyani and some unicorn steak' });
+  check('parse: fuzzy match + unknown food stays unmatched (null, not 0)', r.body.items[0].name === 'Chicken Biryani' && r.body.items[1].matched === false
+    && r.body.items[1].kcal === null && r.body.totals.kcal === 500, r.body.items);
+  const parsedFood = (await api('POST', '/api/food/parse', { text: '3 idli' })).body.items[0];
+  r = await api('POST', '/api/food-logs', { food_id: parsedFood.food_id, servings: parsedFood.servings, meal: 'breakfast' });
+  check('parsed item can be logged with the food-log endpoint', r.status === 201 && r.body.entry.kcal === 174, r.body);
+  await api('DELETE', `/api/food-logs/${r.body.entry.id}`);
+  r = await api('POST', '/api/food/parse', {});
+  check('parse: text required -> 400', r.status === 400, r.body);
+
+  console.log('\nRaphAi Intelligence: coach intents (Pro)');
+  const ask = async (question, context) => {
+    const body = (await api('POST', '/api/coach', context ? { question, context } : { question })).body;
+    show(`coach "${question}"`, body.answer);
+    return body;
+  };
+  let c = await ask('What should I do today?');
+  check('coach: what should I do today', c.topic === 'what_to_do_today' && c.answer.length > 20, c);
+  c = await ask('Why are my steps low?');
+  check('coach: why are my steps low (real numbers)', c.topic === 'steps_low' && c.answer.includes('7,300'), c);
+  c = await ask('How can I save more this month?');
+  check('coach: save more this month', c.topic === 'save_more' && c.answer.includes('₹60,000'), c);
+  c = await ask('Optimise my day');
+  check('coach: optimise my day', c.topic === 'optimise_day' && c.answer.length > 40, c);
+  c = await ask("How's today's nutrition?");
+  check("coach: today's nutrition (real target)", c.topic === 'nutrition_today' && c.answer.includes(t.nutrition.target.toLocaleString('en-IN')), c);
+  c = await ask('Can I really lose my belly fat?');
+  check('coach: fat loss motivation, warm + plan', c.topic === 'fat_loss' && c.answer.startsWith('Yes, you can') && c.answer.includes('kcal'), c);
+  c = await ask('How is my sleep?');
+  check('coach: sleep', c.topic === 'sleep' && /7h 30m/.test(c.answer), c);
+  c = await ask('I feel stressed and sad');
+  check('coach: mood support mentions Tele-MANAS 14416', c.topic === 'mood_support' && c.answer.includes('14416'), c);
+  c = await ask('I feel hopeless and want to die');
+  check('coach: distress -> helpline first', c.topic === 'mood_support' && c.answer.includes('14416') && c.answer.includes('112'), c);
+  c = await ask('blah blah', 'wealth');
+  check('coach: context picks a helpful default', c.topic === 'save_more' && c.guessed_from_context === true, c);
+  c = await ask('blah blah');
+  check('coach: unknown lists what it can do', c.topic === 'unknown' && c.answer.includes('nutrition'), c);
+  r = await api('POST', '/api/coach', { question: 'hi', context: 'kitchen' });
+  check('coach: bad context -> 400', r.status === 400, r.body);
+
+  console.log('\nRaphAi Intelligence: seeded 20-day user -> Life Graph patterns');
+  const lata = await newUser('Lata', 'lata@example.com');
+  await api('POST', '/api/subscription/trial');
+  await api('PUT', '/api/profile', { sex: 'female', age: 28, height_cm: 158, weight_kg: 58, activity_factor: 1.375, goal: 'maintain', income: 40000, step_goal: 8000 });
+  for (let i = 0; i < 20; i++) {
+    const day = addDays(D, -(i + 1));
+    const short = i % 2 === 0;
+    const activeDay = i % 3 !== 0;
+    const wd = new Date(`${day}T00:00:00Z`).getUTCDay();
+    await db.run('INSERT INTO sleep_logs (user_id, date, hours) VALUES ($1, $2, $3)', [lata.id, day, short ? 5.5 : 7.5]);
+    await db.run('INSERT INTO step_logs (user_id, date, steps) VALUES ($1, $2, $3)', [lata.id, day, activeDay ? 9500 : 4000]);
+    await db.run('INSERT INTO mood_logs (user_id, date, mood) VALUES ($1, $2, $3)', [lata.id, day, 2 + (short ? 0 : 1) + (activeDay ? 1 : 0)]);
+    await db.run("INSERT INTO expenses (user_id, amount, category, mode, date, note) VALUES ($1, $2, 'Food', 'UPI', $3, 'Swiggy')", [lata.id, short ? 400 : 100, day]);
+    await db.run("INSERT INTO expenses (user_id, amount, category, mode, date) VALUES ($1, $2, 'Groceries', 'UPI', $3)", [lata.id, short ? 300 : 150, day]);
+    if (wd === 0 || wd === 6) await db.run("INSERT INTO expenses (user_id, amount, category, mode, date) VALUES ($1, 1500, 'Entertainment', 'Card', $2)", [lata.id, day]);
+  }
+  r = await api('GET', '/api/insights/patterns');
+  const ids = (r.body.patterns || []).map((p) => p.id);
+  show('patterns', r.body);
+  check('patterns: enough data (20 days)', r.status === 200 && r.body.enough_data === true && r.body.days_needed === 0, r.body);
+  check('pattern: sleep -> spend', ids.includes('sleep_spend'), r.body.patterns);
+  check('pattern: exercise -> mood', ids.includes('exercise_mood'), r.body.patterns);
+  check('pattern: sleep -> mood', ids.includes('sleep_mood'), r.body.patterns);
+  check('pattern: weekend share of spending', ids.includes('weekend_spend'), r.body.patterns);
+  check('pattern: food delivery after poor sleep', ids.includes('food_delivery_sleep'), r.body.patterns);
+  const ss = r.body.patterns.find((p) => p.id === 'sleep_spend');
+  check('pattern detail uses real numbers + min 5 days per group', ss && /<6h sleep you spent ₹\d/.test(ss.detail) && ss.sample_days >= 10 && ['strong', 'moderate'].includes(ss.strength), ss);
+  r = await api('GET', '/api/insights/profile');
+  check('profile: averages from 20 days + traits', r.body.sleep_avg_min === 390 && r.body.mood_avg > 2 && r.body.traits.length >= 3, r.body);
+  r = await api('GET', '/api/insights/today');
+  check('20-day user: today works before anything is logged today', r.status === 200 && r.body.raphscore.areas.find((a) => a.key === 'recovery').status === 'no_data', r.body.raphscore);
+
+  const tara = await newUser('Tara', 'tara@example.com');
+  await api('POST', '/api/subscription/trial');
+  for (let i = 0; i < 10; i++) await db.run('INSERT INTO sleep_logs (user_id, date, hours) VALUES ($1, $2, 7)', [tara.id, addDays(D, -(i + 1))]);
+  r = await api('GET', '/api/insights/patterns');
+  check('patterns: 10 days -> enough_data false, days_needed 4', r.body.enough_data === false && r.body.days_needed === 4, r.body);
 }
 
 // Set up the database, start the app on a random free port (0), run the tests, stop.
