@@ -1,0 +1,27 @@
+# render.yaml - tells Render how to run RaphAi (a "Blueprint").
+# In Render: New + -> Blueprint -> pick your GitHub repo. Render reads this file.
+services:
+  - type: web
+    name: raphai-backend
+    runtime: node
+    region: singapore        # closest Render region to India
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health-check
+    envVars:
+      # Your Supabase connection string. Render asks you to paste it
+      # when you create the Blueprint (use the "Session pooler" string).
+      - key: DATABASE_URL
+        sync: false
+      # A long random secret for login tokens. Render makes one for you.
+      - key: JWT_SECRET
+        generateValue: true
+      - key: NODE_ENV
+        value: production
+      - key: APP_TZ
+        value: Asia/Kolkata
+      - key: CORS_ORIGIN
+        value: "*"
+      - key: NODE_VERSION
+        value: "22"

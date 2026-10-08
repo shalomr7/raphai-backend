@@ -1,0 +1,31 @@
+// middleware/errors.js
+// ------------------------------------------------------------
+// notFound: any URL we don't know -> 404
+// errorHandler: every error ends up here and becomes clean JSON like
+//   { "error": "Invalid input", "details": ["amount is required"] }
+// ------------------------------------------------------------
+
+function notFound(req, res) {
+  res.status(404).json({ error: `Not found: ${req.method} ${req.originalUrl}` });
+}
+
+// Express knows this is an error handler because it has 4 arguments
+// eslint-disable-next-line no-unused-vars
+function errorHandler(err, req, res, next) {
+  // Bad JSON sent by the app
+  if (err.type === 'entity.parse.failed') {
+    return res.status(400).json({ error: 'Body is not valid JSON' });
+  }
+
+  const status = err.status || 500;
+
+  // Log real crashes so you can fix them; don't show internals to users
+  if (status >= 500) console.error(err);
+
+  res.status(status).json({
+    error: status >= 500 ? 'Something went wrong on the server' : err.message,
+    ...(err.details ? { details: err.details } : {}),
+  });
+}
+
+module.exports = { notFound, errorHandler };
