@@ -276,7 +276,11 @@ async function run() {
   r = await api('GET', '/api/subscription');
   check('starts on free', r.body.subscription.active_plan === 'free', r.body);
   r = await api('POST', '/api/coach', { question: 'calories left?' });
-  check('coach blocked on free -> 402', r.status === 402, r.body);
+  check('coach on free: allowed, 4 left today', r.status === 200 && r.body.remaining_today === 4, r.body);
+  for (let i = 0; i < 4; i++) r = await api('POST', '/api/coach', { question: 'calories left?' });
+  check('coach on free: 5th question ok, 0 left', r.status === 200 && r.body.remaining_today === 0, r.body);
+  r = await api('POST', '/api/coach', { question: 'calories left?' });
+  check('coach on free: 6th question -> 402', r.status === 402, r.body);
   r = await api('POST', '/api/subscription/order', { plan: 'pro', period: 'yearly' });
   check('create stub order (79900 paise)', r.status === 201 && r.body.stub === true && r.body.amount_paise === 79900, r.body);
   const orderId = r.body.order_id;
@@ -380,8 +384,8 @@ async function run() {
   check('verify: status shows Play manage link', /play\.google\.com\/store\/account\/subscriptions\?sku=raphai_pro&package=com\.raphai\.app/.test(r.body.subscription.manage_url), r.body.subscription);
   r = await api('POST', '/api/subscription/google/verify', { purchaseToken: 'tok_pro_yearly', productId: 'raphai_pro', basePlanId: 'yearly' });
   check('verify: same user, same token again is fine (restore)', r.status === 200 && r.body.valid === true, r.body);
-  r = await api('POST', '/api/coach', { question: 'protein foods' });
-  check('Play Pro unlocks coach (requirePlan)', r.status === 200, r.body);
+  r = await api('GET', '/api/insights/brief');
+  check('Play Pro unlocks Pro features (brief)', r.status === 200 && !r.body.locked, r.body);
   r = await api('POST', '/api/subscription/cancel');
   check('cancel a Play plan in-app -> 409 (use Play Store)', r.status === 409, r.body);
 
@@ -402,8 +406,8 @@ async function run() {
   fakeGoogle.tok_pending = gSub({ product: 'raphai_elite', basePlan: 'monthly', state: 'SUBSCRIPTION_STATE_PENDING', accountId: hariAccount });
   r = await api('POST', '/api/subscription/google/verify', { purchaseToken: 'tok_pending', productId: 'raphai_elite', basePlanId: 'monthly' });
   check('verify: pending payment -> valid:false, pending:true', r.status === 200 && r.body.valid === false && r.body.pending === true && r.body.subscription.active_plan === 'free', r.body);
-  r = await api('POST', '/api/coach', { question: 'protein foods' });
-  check('expired Play plan does not unlock coach -> 402', r.status === 402, r.body);
+  r = await api('GET', '/api/insights/brief');
+  check('pending Play plan does not unlock Pro features', r.body.locked === true, r.body);
 
   // Elite monthly for Hari, then "time passes" past the expiry
   fakeGoogle.tok_elite_monthly = gSub({ product: 'raphai_elite', basePlan: 'monthly', accountId: hariAccount });
@@ -418,8 +422,8 @@ async function run() {
   fakeGoogle.tok_elite_monthly = gSub({ product: 'raphai_elite', basePlan: 'monthly', state: 'SUBSCRIPTION_STATE_EXPIRED', expiresIn: -60000, autoRenew: false, accountId: hariAccount });
   await db.run("UPDATE subscriptions SET expires_at = $1 WHERE user_id = (SELECT id FROM users WHERE email = 'hari@example.com')", [iso(-60000)]);
   await db.run("UPDATE google_play_purchases SET expires_at = $1 WHERE purchase_token = 'tok_elite_monthly'", [iso(-60000)]);
-  r = await api('POST', '/api/coach', { question: 'protein foods' });
-  check('requirePlan respects expiry (no RTDN needed) -> 402', r.status === 402, r.body);
+  r = await api('GET', '/api/insights/brief');
+  check('plan check respects expiry (no RTDN needed) -> locked', r.body.locked === true, r.body);
   r = await api('GET', '/api/subscription');
   check('status after expiry -> Free (status expired)', r.body.subscription.active_plan === 'free' && r.body.subscription.status === 'expired', r.body);
 
@@ -469,8 +473,8 @@ async function run() {
   token = gitaToken;
   r = await api('GET', '/api/subscription');
   check('after expiry RTDN: back to Free', r.body.subscription.active_plan === 'free', r.body);
-  r = await api('POST', '/api/coach', { question: 'protein foods' });
-  check('after expiry RTDN: coach locked -> 402', r.status === 402, r.body);
+  r = await api('GET', '/api/insights/brief');
+  check('after expiry RTDN: Pro features locked', r.body.locked === true, r.body);
 
   // Re-subscribe with a NEW token linked to the old one, then a refund (revoke)
   fakeGoogle.tok_pro_again = gSub({ product: 'raphai_pro', basePlan: 'monthly', accountId: gitaAccount, linked: 'tok_pro_yearly' });
@@ -608,7 +612,7 @@ async function intelligenceTests({ D, mainToken }) {
     check(`Free: /api/insights/${p} -> { locked: true }`, r.status === 200 && r.body.locked === true, r.body);
   }
   r = await api('POST', '/api/coach', { question: 'what should I do today?' });
-  check('Free: coach still Pro -> 402', r.status === 402, r.body);
+  check('Free: coach answers with a daily allowance', r.status === 200 && typeof r.body.remaining_today === 'number', r.body);
   for (let i = 1; i <= 5; i++) {
     r = await api('POST', '/api/food/parse', { text: '2 idli' });
     if (r.status !== 200) break;

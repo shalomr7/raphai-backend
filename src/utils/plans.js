@@ -16,6 +16,7 @@
 const FREE_LIMITS = {
   budgets_per_month: 3,
   savings_goals: 2,
+  coach_per_day: 5,        // Raph AI questions a day on Free. Unlimited on Pro.
   food_parse_per_day: 5,   // "I ate 2 rotis and dal" -> foods. Unlimited on Pro.
   trend_days: 7,           // GET /api/insights/trends: Free sees 7 days, Pro 30
 };

@@ -70,8 +70,8 @@ function createApp() {
   app.use('/api/food', requireAuth, foodRoutes);       // POST /api/food/parse
   app.use('/api/activity', requireAuth, activityRoutes);
 
-  // ---- Pro plan (or higher) needed ----
-  app.use('/api/coach', requireAuth, requirePlan('pro'), coachRoutes);
+  // Coach: Free gets a daily allowance, Pro is unlimited (checked in the route)
+  app.use('/api/coach', requireAuth, coachRoutes);
 
   // Unknown URL -> 404, and any error -> clean JSON
   app.use(notFound);
