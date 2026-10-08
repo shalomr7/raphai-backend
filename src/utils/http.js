@@ -12,6 +12,7 @@ class HttpError extends Error {
     super(message);
     this.status = status;
     this.details = details;
+    this.expose = true; // our own message is safe to show, even for 5xx (e.g. 503 "billing not configured")
   }
 }
 

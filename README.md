@@ -43,7 +43,7 @@ npm test               # same as: node test/smoke.js
 
 It uses the database in `DATABASE_URL` (or `TEST_DATABASE_URL` if you set it). It makes a
 fresh, empty **schema** (a separate folder inside the database) just for the test, signs up a
-user, calls the main endpoints, prints `SMOKE TEST PASSED (90 checks)`, and then deletes that
+user, calls the main endpoints, prints `SMOKE TEST PASSED (137 checks)`, and then deletes that
 schema. Your real tables and data are not touched.
 
 **Start again with an empty database:** in Supabase, open the SQL Editor and run
@@ -74,6 +74,7 @@ raphai-backend/
 │   │   ├── dates.js      Works out "today" and "this month" in Indian time
 │   │   └── plans.js      The plans and prices (Free, Pro, Elite)
 │   ├── services/
+│   │   ├── googlePlay.js Google Play Billing: asks Google for a purchase's state, saves it, sets the plan
 │   │   ├── summary.js    Adds up a user's day (health) and month (money), and works out the scores
 │   └── streaks.js    Logging streak and RaphScore streak
 │   └── routes/           One file per part of the API
@@ -83,6 +84,7 @@ raphai-backend/
 │       ├── foods.js      Food search and the food log
 │       ├── wealth.js     Expenses, budgets, savings goals, bills, SIP and EMI calculators
 │       ├── subscription.js  Plans, subscription, Razorpay order, verify, and webhook (stub)
+│       ├── googlePlay.js    Google Play Billing: /api/subscription/google/verify and /rtdn
 │       ├── dashboard.js  The home screen data, RaphScore and streaks
 │       ├── export.js     GET /api/export: all your data as JSON
 │       └── coach.js      Simple rule-based coach (Pro plan)
@@ -105,7 +107,11 @@ raphai-backend/
 | `APP_TZ` | Timezone for "today" | `Asia/Kolkata` |
 | `CORS_ORIGIN` | Which websites may call the API (`*` = all) | `*` |
 | `NODE_ENV` | `development` or `production` | `development` |
-| `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` | Razorpay keys. Leave empty for **stub mode** (nothing is charged) | empty |
+| `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` | Google Cloud service-account key (raw JSON or base64). Needed for real Play purchases | empty (verify answers **503 billing not configured**) |
+| `GOOGLE_PLAY_PACKAGE_NAME` | The Android app id | `com.raphai.app` in render.yaml |
+| `GOOGLE_RTDN_SECRET` | Long random text; the Pub/Sub push URL must end with `?secret=` this value | empty (RTDN answers 503) |
+| `GOOGLE_RTDN_AUDIENCE` / `GOOGLE_RTDN_SERVICE_ACCOUNT_EMAIL` | Optional: also check Pub/Sub's signed token | empty (off) |
+| `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` | Razorpay keys (**not used by the app any more**; kept for later). Leave empty for **stub mode** | empty |
 | `RAZORPAY_WEBHOOK_SECRET` | Secret for checking Razorpay webhooks | empty |
 
 ---
@@ -151,6 +157,8 @@ Status codes: 400 bad input, 401 not logged in, 402 plan needed, 404 not found, 
 | Method | URL | What it does |
 |---|---|---|
 | GET | `/api/health-check` | Is the server running? |
+| GET | `/privacy` | Public Privacy Policy web page (from `docs/legal/privacy-policy.md`) |
+| GET | `/terms` | Public Terms & Conditions web page (from `docs/legal/terms-and-conditions.md`) |
 | POST | `/api/auth/register` | Sign up. Returns a token |
 | POST | `/api/auth/login` | Log in. Returns a token |
 | GET | `/api/plans` | Plans and prices |
@@ -179,7 +187,7 @@ curl -X PUT http://localhost:4000/api/profile -H "Authorization: Bearer $T" -H "
   -d '{"sex":"male","age":30,"height_cm":175,"weight_kg":75,"activity_factor":1.55,"goal":"lose","pace_kg_week":0.5,"income":60000,"neck_cm":38,"waist_cm":86}'
 ```
 
-The profile fields are: `sex` (male/female), `age`, `height_cm`, `weight_kg`, `activity_factor` (1.2 to 1.9), `goal` (lose/maintain/gain), `pace_kg_week` (0 to 1), `income` (₹ per month), and these optional ones: `neck_cm`, `waist_cm`, `hip_cm`, `step_goal`.
+The profile fields are: `sex` (male/female), `age` (18 to 100; RaphAi is for adults only), `height_cm`, `weight_kg`, `activity_factor` (1.2 to 1.9), `goal` (lose/maintain/gain), `pace_kg_week` (0 to 1), `income` (₹ per month), and these optional ones: `neck_cm`, `waist_cm`, `hip_cm`, `step_goal`.
 
 ### Health
 | Method | URL | What it does |
@@ -276,9 +284,11 @@ curl "http://localhost:4000/api/wealth/calculators/sip?monthly=5000&rate=12&year
 | Method | URL | What it does |
 |---|---|---|
 | GET | `/api/subscription` | Your plan and when it ends |
-| POST | `/api/subscription/order` | Start a payment `{ "plan": "pro", "period": "yearly" }` |
+| POST | `/api/subscription/google/verify` | **Google Play.** After a purchase (or Restore) the app sends `{ "purchaseToken", "productId": "raphai_pro", "basePlanId": "yearly" }`. Answers `{ valid, pending, google, subscription }` |
+| POST | `/api/subscription/google/rtdn?secret=...` | **Public.** Google Cloud Pub/Sub pushes Play notifications here |
+| POST | `/api/subscription/order` | (Razorpay, unused) Start a payment `{ "plan": "pro", "period": "yearly" }` |
 | POST | `/api/subscription/verify` | After paying, send `{ razorpay_order_id, razorpay_payment_id, razorpay_signature }` |
-| POST | `/api/subscription/cancel` | Go back to Free |
+| POST | `/api/subscription/cancel` | Go back to Free (409 for a Google Play plan: cancel it in the Play Store) |
 | POST | `/api/subscription/trial` | Start the **14-day free Pro trial** (once per account; 409 if already used) |
 | POST | `/api/subscription/dev-activate` | **Development only.** Turns on a plan without paying `{ "plan": "pro", "period": "monthly" }` |
 
@@ -290,11 +300,22 @@ curl "http://localhost:4000/api/wealth/calculators/sip?monthly=5000&rate=12&year
 
 `GET /api/plans` also returns `trial_days: 14` and `best_value_period: "yearly"`.
 
-**What is free and what is Pro.** Free has **no ads** and keeps calories, macros, water, steps, all logs, BMI, expenses, bills, the 50/30/20 suggestion, RaphScore and streaks. **Pro** unlocks: body fat % (on Free, `/api/health/targets` returns `body_fat_pct: null` and `body_fat_locked: true`), unlimited budgets and goals, SIP/EMI calculators, the coach, and HIIT plans (HIIT plans are locked in the phone app).
+**What is free and what is Pro.** Free keeps calories, macros, water, steps, all logs, BMI, expenses, bills, the 50/30/20 suggestion, RaphScore and streaks. **Pro** unlocks: body fat % (on Free, `/api/health/targets` returns `body_fat_pct: null` and `body_fat_locked: true`), unlimited budgets and goals, SIP/EMI calculators, the coach, and HIIT plans (HIIT plans are locked in the phone app).
 
 Elite includes everything in Pro. To lock any route behind a plan, add `requirePlan('pro')` (or `'elite'`) after `requireAuth`, the same way `/api/coach` is set up in `src/app.js`.
 
-**About Razorpay (stub):** with no keys in `.env`, `/order` makes a **fake** order (its id starts with `order_stub_`) and nothing is charged. With keys, it creates a real order using the Razorpay Orders API. Both `/verify` and the webhook check the HMAC-SHA256 signature. Test with Razorpay **test** keys before you go live, and in the Razorpay dashboard point the webhook at `https://your-server/api/webhooks/razorpay` with the events `payment.captured` and `payment.failed`.
+**Google Play Billing (real payments).** Products in Play Console: `raphai_pro` and `raphai_elite`, each with base plans `monthly` and `yearly`, and a 14-day free-trial offer on each base plan.
+
+1. The phone app buys with Google Play and gets a `purchaseToken`.
+2. It sends the token to `POST /api/subscription/google/verify`. The server asks Google (`purchases.subscriptionsv2.get`) for the real state, saves it in the table `google_play_purchases`, and sets the user's plan, expiry, auto-renew and trial in `subscriptions`.
+3. Only when the server says `valid: true` does the app acknowledge (finish) the purchase. Google refunds purchases that are not acknowledged within 3 days, so the app also re-checks unfinished purchases each time the Upgrade screen opens.
+4. Google then tells the server about renewals, cancellations, expiries, payment problems and refunds through **Real-time Developer Notifications** (Pub/Sub push to `/api/subscription/google/rtdn?secret=...`). For every message the server asks Google again for the latest state.
+
+Safety rules: one purchase token can only be linked to one RaphAi account (409 otherwise); the app passes a hashed account id (`play_account_id` from `GET /api/subscription`) when buying, and the server rejects a token bought from another account; a refunded/revoked token never gives access again. Access is given for the states ACTIVE, CANCELED (until the paid time ends) and IN_GRACE_PERIOD, and only while the expiry is in the future, so plans end on time even if a notification is missed. When a Google plan looks expired, `GET /api/subscription` asks Google once more before switching to Free.
+
+Without the Google settings, verify answers **503 "Google Play billing is not configured"**. The smoke test replaces Google with a fake, so it checks all of this without a Play Console. The step-by-step setup for the Play Console, Google Cloud and Pub/Sub is in the separate owner checklist (`raphai-play-billing-setup.md`).
+
+**About Razorpay (stub, no longer used by the app):** with no keys in `.env`, `/order` makes a **fake** order (its id starts with `order_stub_`) and nothing is charged. With keys, it creates a real order using the Razorpay Orders API. Both `/verify` and the webhook check the HMAC-SHA256 signature. Test with Razorpay **test** keys before you go live, and in the Razorpay dashboard point the webhook at `https://your-server/api/webhooks/razorpay` with the events `payment.captured` and `payment.failed`.
 
 ### Dashboard and coach
 | Method | URL | What it does |
@@ -381,7 +402,7 @@ export async function scheduleSitReminders(token) {
 - Set a strong `JWT_SECRET` and `NODE_ENV=production`
 - Run behind **HTTPS** (for example on Render, Railway or a VPS with Nginx)
 - Set `CORS_ORIGIN` to your real website address
-- Add real Razorpay keys and the webhook secret, and test with test keys first
+- Set the Google Play settings (`GOOGLE_PLAY_SERVICE_ACCOUNT_JSON`, `GOOGLE_RTDN_SECRET`) and test with a licence tester before going live
 - Make backups: Supabase free projects have no backups you can download, so export your data now and then (for example with `pg_dump`)
 - The food numbers are typical home-style values. Recipes differ, so the results are good estimates, not medical advice.
 

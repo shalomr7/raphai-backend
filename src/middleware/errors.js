@@ -20,10 +20,10 @@ function errorHandler(err, req, res, next) {
   const status = err.status || 500;
 
   // Log real crashes so you can fix them; don't show internals to users
-  if (status >= 500) console.error(err);
+  if (status >= 500 && !err.expose) console.error(err);
 
   res.status(status).json({
-    error: status >= 500 ? 'Something went wrong on the server' : err.message,
+    error: status >= 500 && !err.expose ? 'Something went wrong on the server' : err.message,
     ...(err.details ? { details: err.details } : {}),
   });
 }

@@ -9,6 +9,12 @@
 //   POST /api/subscription/trial         start the 14-day free Pro trial (once per account)
 //   POST /api/subscription/dev-activate  DEVELOPMENT ONLY: turn on a plan without paying
 //   POST /api/webhooks/razorpay          (public) Razorpay calls this when money arrives
+//   POST /api/subscription/google/verify (see routes/googlePlay.js) Google Play purchase check
+//   POST /api/subscription/google/rtdn   (see routes/googlePlay.js) Google Play notifications
+//
+// NOTE (Oct 2026): real payments now go through GOOGLE PLAY BILLING
+// (routes/googlePlay.js). The Razorpay code below is kept but the app
+// does not use it any more.
 //
 // ************************************************************
 // *  RAZORPAY STUB — READ THIS                                 *
@@ -27,9 +33,11 @@
 const express = require('express');
 const crypto = require('crypto');
 const db = require('../db');
-const { PLANS, TRIAL_DAYS } = require('../utils/plans');
+const { PLANS, TRIAL_DAYS, GOOGLE_PRODUCTS } = require('../utils/plans');
 const { currentPlan } = require('../middleware/requirePlan');
 const { validate, asyncHandler, HttpError } = require('../utils/http');
+const play = require('../services/googlePlay');
+const { setStatusFn } = require('./googlePlay');
 
 // ---------- helpers ----------
 
@@ -45,8 +53,8 @@ async function activatePlan(userId, plan, period, q = db) {
   if (period === 'yearly') end.setFullYear(end.getFullYear() + 1);
   else end.setMonth(end.getMonth() + 1);
 
-  await q.run(`INSERT INTO subscriptions (user_id, plan, period, status, expires_at) VALUES ($1, $2, $3, 'active', $4)
-    ON CONFLICT (user_id) DO UPDATE SET plan = excluded.plan, period = excluded.period, status = 'active', expires_at = excluded.expires_at`,
+  await q.run(`INSERT INTO subscriptions (user_id, plan, period, status, expires_at, source) VALUES ($1, $2, $3, 'active', $4, NULL)
+    ON CONFLICT (user_id) DO UPDATE SET plan = excluded.plan, period = excluded.period, status = 'active', expires_at = excluded.expires_at, source = NULL`,
     [userId, plan, period, end.toISOString()]);
 }
 
@@ -62,18 +70,65 @@ async function markPaidAndActivate(paymentId, razorpayPaymentId) {
   });
 }
 
+// Google Play subscriptions page for our app (the app opens this to
+// let people cancel or change plan)
+function playManageUrl(productId) {
+  const pkg = play.packageName() || 'com.raphai.app';
+  return productId
+    ? `https://play.google.com/store/account/subscriptions?sku=${encodeURIComponent(productId)}&package=${encodeURIComponent(pkg)}`
+    : 'https://play.google.com/store/account/subscriptions';
+}
+
+// If a Google Play plan looks expired, ask Google once more before
+// switching the user to Free (in case we missed a "renewed" notification).
+async function recheckExpiredGoogle(userId) {
+  const sub = await db.get('SELECT source, expires_at, google_purchase_token FROM subscriptions WHERE user_id = $1', [userId]);
+  if (!sub || sub.source !== 'google_play' || !sub.google_purchase_token) return;
+  if (!sub.expires_at || new Date(sub.expires_at) > new Date()) return;
+  if (!play.isConfigured()) return;
+  try {
+    await play.refreshToken(sub.google_purchase_token);
+  } catch (e) {
+    console.warn('Google Play re-check failed:', e.message);
+  }
+  // Still expired after asking Google? Write it down so we don't ask every time.
+  await play.recomputeEntitlement(userId);
+}
+
 async function subscriptionStatus(userId) {
-  const sub = await db.get('SELECT plan, period, status, expires_at, trial_used FROM subscriptions WHERE user_id = $1', [userId]);
+  const sub = await db.get(`SELECT plan, period, status, expires_at, trial_used, source, auto_renew, google_purchase_token
+    FROM subscriptions WHERE user_id = $1`, [userId]);
   const active = await currentPlan(userId);
+  let google = null;
+  if (sub && sub.google_purchase_token) {
+    google = await db.get(`SELECT product_id, base_plan_id, offer_id, subscription_state, expires_at, auto_renew, in_trial
+      FROM google_play_purchases WHERE purchase_token = $1`, [sub.google_purchase_token]);
+  }
+  const { google_purchase_token: _hidden, ...pub } = sub || {};
   return {
-    ...sub,
+    ...pub,
+    source: (sub && sub.source) || null,
+    auto_renew: Boolean(sub && sub.auto_renew),
     trial_used: Boolean(sub && sub.trial_used),
     on_trial: Boolean(sub && sub.period === 'trial' && active !== 'free'),
     trial_days: TRIAL_DAYS,
     active_plan: active,
     active_plan_name: PLANS[active].name,
+    // The app passes this to Google when buying (obfuscatedAccountId)
+    play_account_id: play.playAccountId(userId),
+    google_play: google ? {
+      product_id: google.product_id,
+      base_plan_id: google.base_plan_id,
+      state: google.subscription_state,
+      expires_at: google.expires_at ? new Date(google.expires_at).toISOString() : null,
+      auto_renew: Boolean(google.auto_renew),
+      in_trial: Boolean(google.in_trial),
+      manage_url: playManageUrl(google.product_id),
+    } : null,
+    manage_url: playManageUrl(google && google.product_id),
   };
 }
+setStatusFn(subscriptionStatus);
 
 // HMAC-SHA256 signature, compared in a way that doesn't leak timing info
 function hmac(secret, text) {
@@ -93,6 +148,8 @@ plansRouter.get('/', (req, res) => {
     currency: 'INR',
     trial_days: TRIAL_DAYS, // free trial of Pro for new users
     best_value_period: 'yearly',
+    // Google Play product ids (each has base plans "monthly" and "yearly")
+    google_play: { package_name: play.packageName() || 'com.raphai.app', billing_configured: play.isConfigured() },
     plans: Object.values(PLANS).map((p) => ({
       id: p.id,
       name: p.name,
@@ -100,6 +157,7 @@ plansRouter.get('/', (req, res) => {
       price_yearly: p.prices.yearly,
       // how much cheaper yearly is compared to 12 monthly payments
       yearly_saving: p.prices.monthly * 12 - p.prices.yearly,
+      google_product_id: Object.keys(GOOGLE_PRODUCTS).find((k) => GOOGLE_PRODUCTS[k] === p.id) || null,
       features: p.features,
     })),
   });
@@ -109,6 +167,7 @@ plansRouter.get('/', (req, res) => {
 const subRouter = express.Router();
 
 subRouter.get('/', asyncHandler(async (req, res) => {
+  await recheckExpiredGoogle(req.user.id);
   res.json({ subscription: await subscriptionStatus(req.user.id) });
 }));
 
@@ -183,8 +242,13 @@ subRouter.post('/verify', asyncHandler(async (req, res) => {
 }));
 
 subRouter.post('/cancel', asyncHandler(async (req, res) => {
+  // A Google Play subscription can only be cancelled in the Play Store
+  const cur = await db.get('SELECT source FROM subscriptions WHERE user_id = $1', [req.user.id]);
+  if (cur && cur.source === 'google_play' && (await currentPlan(req.user.id)) !== 'free') {
+    throw new HttpError(409, 'This plan is billed by Google Play. Cancel it in the Play Store: Profile -> Payments & subscriptions -> Subscriptions.');
+  }
   // Simple version: switch back to Free right away.
-  await db.run("UPDATE subscriptions SET plan = 'free', period = NULL, expires_at = NULL, status = 'active' WHERE user_id = $1", [req.user.id]);
+  await db.run("UPDATE subscriptions SET plan = 'free', period = NULL, expires_at = NULL, status = 'active', source = NULL WHERE user_id = $1", [req.user.id]);
   res.json({ subscription: await subscriptionStatus(req.user.id) });
 }));
 
@@ -194,7 +258,7 @@ subRouter.post('/trial', asyncHandler(async (req, res) => {
   if (sub && sub.trial_used) throw new HttpError(409, 'You have already used your free trial');
   if ((await currentPlan(req.user.id)) !== 'free') throw new HttpError(409, 'You already have a paid plan');
   const end = new Date(Date.now() + TRIAL_DAYS * 86400000);
-  await db.run(`UPDATE subscriptions SET plan = 'pro', period = 'trial', status = 'active', expires_at = $1, trial_used = 1
+  await db.run(`UPDATE subscriptions SET plan = 'pro', period = 'trial', status = 'active', expires_at = $1, trial_used = 1, source = NULL
     WHERE user_id = $2`, [end.toISOString(), req.user.id]);
   res.json({ subscription: await subscriptionStatus(req.user.id), note: `Pro trial started for ${TRIAL_DAYS} days` });
 }));
@@ -244,4 +308,4 @@ webhookRouter.post('/razorpay', asyncHandler(async (req, res) => {
   res.json({ ok: true });
 }));
 
-module.exports = { plansRouter, subRouter, webhookRouter };
+module.exports = { plansRouter, subRouter, webhookRouter, subscriptionStatus };

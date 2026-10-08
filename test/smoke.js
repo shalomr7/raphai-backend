@@ -26,10 +26,55 @@ process.env.NODE_ENV = 'test';
 process.env.RAZORPAY_KEY_ID = '';
 process.env.RAZORPAY_KEY_SECRET = '';
 process.env.RAZORPAY_WEBHOOK_SECRET = 'smoke_webhook_secret';
+// Google Play: fake settings. The Google API itself is replaced by a fake below.
+const FAKE_SA = JSON.stringify({ type: 'service_account', client_email: 'smoke@example.iam.gserviceaccount.com', private_key: '-----BEGIN PRIVATE KEY-----\nfake\n-----END PRIVATE KEY-----\n' });
+process.env.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON = Buffer.from(FAKE_SA).toString('base64'); // base64 form
+process.env.GOOGLE_PLAY_PACKAGE_NAME = 'com.raphai.app';
+process.env.GOOGLE_RTDN_SECRET = 'smoke_rtdn_secret';
+delete process.env.GOOGLE_RTDN_AUDIENCE;
 
 const db = require('../src/db');
 const { createApp } = require('../src/app');
 const { today, thisMonth } = require('../src/utils/dates');
+const play = require('../src/services/googlePlay');
+
+// ---- Fake Google Play Developer API ----
+// fakeGoogle[token] = the SubscriptionPurchaseV2 answer Google would give.
+const fakeGoogle = {};
+let googleCalls = 0;
+play.setPlayApiFetcher(async (token) => {
+  googleCalls++;
+  if (!fakeGoogle[token]) { const e = new Error('Not found'); e.googleStatus = 404; throw e; }
+  return JSON.parse(JSON.stringify(fakeGoogle[token]));
+});
+const DAY = 86400000;
+const iso = (msFromNow) => new Date(Date.now() + msFromNow).toISOString();
+function gSub({ product = 'raphai_pro', basePlan = 'yearly', state = 'SUBSCRIPTION_STATE_ACTIVE', expiresIn = 30 * DAY,
+  autoRenew = true, trial = false, accountId = null, linked = null }) {
+  return {
+    kind: 'androidpublisher#subscriptionPurchaseV2',
+    regionCode: 'IN',
+    startTime: iso(-DAY),
+    subscriptionState: state,
+    acknowledgementState: 'ACKNOWLEDGEMENT_STATE_PENDING',
+    latestOrderId: 'GPA.1234-5678-9012-34567',
+    ...(linked ? { linkedPurchaseToken: linked } : {}),
+    ...(accountId ? { externalAccountIdentifiers: { obfuscatedExternalAccountId: accountId } } : {}),
+    testPurchase: {},
+    lineItems: [{
+      productId: product,
+      expiryTime: iso(expiresIn),
+      autoRenewingPlan: { autoRenewEnabled: autoRenew },
+      offerDetails: { basePlanId: basePlan, ...(trial ? { offerId: 'trial-14d' } : {}) },
+      offerPhase: trial ? { freeTrial: {} } : { basePrice: {} },
+    }],
+  };
+}
+// What Pub/Sub would POST to our RTDN endpoint
+function rtdnBody(note) {
+  return { message: { data: Buffer.from(JSON.stringify({ version: '1.0', packageName: 'com.raphai.app', eventTimeMillis: String(Date.now()), ...note })).toString('base64'), messageId: '1' }, subscription: 'projects/x/subscriptions/raphai-rtdn' };
+}
+const subNote = (purchaseToken, notificationType) => rtdnBody({ subscriptionNotification: { version: '1.0', notificationType, purchaseToken } });
 
 let base; let token; let passed = 0;
 
@@ -57,6 +102,14 @@ async function run() {
   const D = today();
   const M = thisMonth();
 
+  console.log('\nPublic legal pages');
+  for (const [url, heading] of [['/privacy', 'RaphAi Privacy Policy'], ['/terms', 'RaphAi Terms &amp; Conditions']]) {
+    const res = await fetch(base + url);
+    const html = await res.text();
+    check(`GET ${url} -> 200 text/html (no login)`, res.status === 200 && /^text\/html/.test(res.headers.get('content-type') || ''), { status: res.status, type: res.headers.get('content-type') });
+    check(`GET ${url} shows its heading`, html.includes(`<h1>${heading}</h1>`), html.slice(0, 300));
+  }
+
   console.log('\nAuth');
   let r = await api('POST', '/api/auth/register', { name: 'Ravi', email: 'ravi@example.com', password: 'secret123' });
   check('register returns 201 + token', r.status === 201 && r.body.token, r.body);
@@ -77,6 +130,10 @@ async function run() {
   check('targets need a profile -> 400', r.status === 400, r.body);
   r = await api('PUT', '/api/profile', { age: 'abc' });
   check('bad input -> 400 with details', r.status === 400 && Array.isArray(r.body.details), r.body);
+  r = await api('PUT', '/api/profile', { age: 17 });
+  check('age under 18 -> 400 (adults only)', r.status === 400 && Array.isArray(r.body.details), r.body);
+  r = await api('PUT', '/api/profile', { age: 18 });
+  check('age 18 is allowed', r.status === 200 && r.body.profile.age === 18, r.body);
   r = await api('PUT', '/api/profile', {
     sex: 'male', age: 30, height_cm: 175, weight_kg: 75, activity_factor: 1.55,
     goal: 'lose', pace_kg_week: 0.5, income: 60000, neck_cm: 38, waist_cm: 86,
@@ -289,6 +346,160 @@ async function run() {
   await api('POST', '/api/subscription/cancel');
   r = await api('POST', '/api/subscription/trial');
   check('only one trial per account -> 409', r.status === 409, r.body);
+  token = mainToken;
+
+  console.log('\nGoogle Play Billing (Google API mocked)');
+  const savedSa = process.env.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON;
+  delete process.env.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON;
+  token = (await api('POST', '/api/auth/register', { name: 'Gita', email: 'gita@example.com', password: 'secret123' })).body.token;
+  const gitaToken = token;
+  r = await api('POST', '/api/subscription/google/verify', { purchaseToken: 'tok_x', productId: 'raphai_pro', basePlanId: 'yearly' });
+  check('verify without Google settings -> 503 billing not configured', r.status === 503 && /not configured/i.test(r.body.error), r.body);
+  process.env.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON = 'not json at all';
+  r = await api('POST', '/api/subscription/google/verify', { purchaseToken: 'tok_x', productId: 'raphai_pro' });
+  check('verify with a broken service-account JSON -> 503', r.status === 503, r.body);
+  process.env.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON = FAKE_SA; // raw JSON form works too
+  r = await api('GET', '/api/plans');
+  check('plans list Google product ids', r.body.plans.find((p) => p.id === 'pro').google_product_id === 'raphai_pro'
+    && r.body.plans.find((p) => p.id === 'elite').google_product_id === 'raphai_elite' && r.body.google_play.billing_configured === true, r.body);
+  process.env.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON = savedSa;
+
+  r = await api('GET', '/api/subscription');
+  const gitaAccount = r.body.subscription.play_account_id;
+  check('status gives a hashed play_account_id', typeof gitaAccount === 'string' && gitaAccount.length === 64, r.body);
+  r = await api('POST', '/api/subscription/google/verify', { purchaseToken: 'tok_x', productId: 'raphai_gold' });
+  check('verify: unknown productId -> 400', r.status === 400, r.body);
+  r = await api('POST', '/api/subscription/google/verify', { purchaseToken: 'tok_unknown', productId: 'raphai_pro', basePlanId: 'yearly' });
+  check('verify: token Google does not know -> 400', r.status === 400, r.body);
+
+  fakeGoogle.tok_pro_yearly = gSub({ product: 'raphai_pro', basePlan: 'yearly', trial: true, expiresIn: 14 * DAY, accountId: gitaAccount });
+  r = await api('POST', '/api/subscription/google/verify', { purchaseToken: 'tok_pro_yearly', productId: 'raphai_pro', basePlanId: 'yearly' });
+  check('verify: valid Pro yearly (in 14-day trial)', r.status === 200 && r.body.valid === true && r.body.google.in_trial === true
+    && r.body.subscription.active_plan === 'pro' && r.body.subscription.on_trial === true && r.body.subscription.source === 'google_play'
+    && r.body.subscription.auto_renew === true, r.body);
+  check('verify: status shows Play manage link', /play\.google\.com\/store\/account\/subscriptions\?sku=raphai_pro&package=com\.raphai\.app/.test(r.body.subscription.manage_url), r.body.subscription);
+  r = await api('POST', '/api/subscription/google/verify', { purchaseToken: 'tok_pro_yearly', productId: 'raphai_pro', basePlanId: 'yearly' });
+  check('verify: same user, same token again is fine (restore)', r.status === 200 && r.body.valid === true, r.body);
+  r = await api('POST', '/api/coach', { question: 'protein foods' });
+  check('Play Pro unlocks coach (requirePlan)', r.status === 200, r.body);
+  r = await api('POST', '/api/subscription/cancel');
+  check('cancel a Play plan in-app -> 409 (use Play Store)', r.status === 409, r.body);
+
+  token = (await api('POST', '/api/auth/register', { name: 'Hari', email: 'hari@example.com', password: 'secret123' })).body.token;
+  const hariToken = token;
+  const hariAccount = (await api('GET', '/api/subscription')).body.subscription.play_account_id;
+  r = await api('POST', '/api/subscription/google/verify', { purchaseToken: 'tok_pro_yearly', productId: 'raphai_pro', basePlanId: 'yearly' });
+  check('duplicate token on a second account -> 409', r.status === 409, r.body);
+  r = await api('GET', '/api/subscription');
+  check('second account stays Free', r.body.subscription.active_plan === 'free', r.body);
+  fakeGoogle.tok_bought_by_gita = gSub({ product: 'raphai_elite', basePlan: 'monthly', accountId: gitaAccount });
+  r = await api('POST', '/api/subscription/google/verify', { purchaseToken: 'tok_bought_by_gita', productId: 'raphai_elite', basePlanId: 'monthly' });
+  check('token bought with another account id -> 409', r.status === 409, r.body);
+
+  fakeGoogle.tok_expired = gSub({ product: 'raphai_elite', basePlan: 'monthly', state: 'SUBSCRIPTION_STATE_EXPIRED', expiresIn: -2 * DAY, autoRenew: false, accountId: hariAccount });
+  r = await api('POST', '/api/subscription/google/verify', { purchaseToken: 'tok_expired', productId: 'raphai_elite', basePlanId: 'monthly' });
+  check('verify: expired subscription -> valid:false, still Free', r.status === 200 && r.body.valid === false && r.body.subscription.active_plan === 'free', r.body);
+  fakeGoogle.tok_pending = gSub({ product: 'raphai_elite', basePlan: 'monthly', state: 'SUBSCRIPTION_STATE_PENDING', accountId: hariAccount });
+  r = await api('POST', '/api/subscription/google/verify', { purchaseToken: 'tok_pending', productId: 'raphai_elite', basePlanId: 'monthly' });
+  check('verify: pending payment -> valid:false, pending:true', r.status === 200 && r.body.valid === false && r.body.pending === true && r.body.subscription.active_plan === 'free', r.body);
+  r = await api('POST', '/api/coach', { question: 'protein foods' });
+  check('expired Play plan does not unlock coach -> 402', r.status === 402, r.body);
+
+  // Elite monthly for Hari, then "time passes" past the expiry
+  fakeGoogle.tok_elite_monthly = gSub({ product: 'raphai_elite', basePlan: 'monthly', accountId: hariAccount });
+  r = await api('POST', '/api/subscription/google/verify', { purchaseToken: 'tok_elite_monthly', productId: 'raphai_elite', basePlanId: 'monthly' });
+  check('verify: valid Elite monthly', r.body.valid === true && r.body.subscription.active_plan === 'elite' && r.body.subscription.period === 'monthly', r.body);
+  // Google renewed it but we missed the notification: status re-checks with Google
+  fakeGoogle.tok_elite_monthly = gSub({ product: 'raphai_elite', basePlan: 'monthly', expiresIn: 31 * DAY, accountId: hariAccount });
+  await db.run("UPDATE subscriptions SET expires_at = $1 WHERE user_id = (SELECT id FROM users WHERE email = 'hari@example.com')", [iso(-60000)]);
+  r = await api('GET', '/api/subscription');
+  check('expired-looking plan is re-checked with Google (missed renewal -> still Elite)', r.body.subscription.active_plan === 'elite' && new Date(r.body.subscription.expires_at) > new Date(Date.now() + 30 * DAY), r.body);
+  // Now it really expired at Google too
+  fakeGoogle.tok_elite_monthly = gSub({ product: 'raphai_elite', basePlan: 'monthly', state: 'SUBSCRIPTION_STATE_EXPIRED', expiresIn: -60000, autoRenew: false, accountId: hariAccount });
+  await db.run("UPDATE subscriptions SET expires_at = $1 WHERE user_id = (SELECT id FROM users WHERE email = 'hari@example.com')", [iso(-60000)]);
+  await db.run("UPDATE google_play_purchases SET expires_at = $1 WHERE purchase_token = 'tok_elite_monthly'", [iso(-60000)]);
+  r = await api('POST', '/api/coach', { question: 'protein foods' });
+  check('requirePlan respects expiry (no RTDN needed) -> 402', r.status === 402, r.body);
+  r = await api('GET', '/api/subscription');
+  check('status after expiry -> Free (status expired)', r.body.subscription.active_plan === 'free' && r.body.subscription.status === 'expired', r.body);
+
+  console.log('\nGoogle Play RTDN (Pub/Sub push)');
+  token = null;
+  r = await api('POST', '/api/subscription/google/rtdn?secret=wrong', subNote('tok_pro_yearly', 2));
+  check('RTDN with wrong secret -> 401', r.status === 401, r.body);
+  r = await api('POST', '/api/subscription/google/rtdn', subNote('tok_pro_yearly', 2));
+  check('RTDN with no secret -> 401', r.status === 401, r.body);
+  process.env.GOOGLE_RTDN_AUDIENCE = 'https://raphai-backend.onrender.com/api/subscription/google/rtdn';
+  r = await api('POST', '/api/subscription/google/rtdn?secret=smoke_rtdn_secret', subNote('tok_pro_yearly', 2));
+  check('RTDN with JWT check on but no Pub/Sub token -> 401', r.status === 401, r.body);
+  delete process.env.GOOGLE_RTDN_AUDIENCE;
+  const RT = '/api/subscription/google/rtdn?secret=smoke_rtdn_secret';
+  r = await api('POST', RT, rtdnBody({ testNotification: { version: '1.0' } }));
+  check('RTDN test notification -> 200', r.status === 200 && r.body.test === true, r.body);
+  r = await api('POST', RT, { message: { data: '!!!not-base64-json' } });
+  check('RTDN broken message is acked (200) so Pub/Sub stops retrying', r.status === 200, r.body);
+  r = await api('POST', RT, subNote('tok_nobody_knows', 4));
+  check('RTDN for a token Google does not know -> 200 ignored', r.status === 200 && r.body.ignored, r.body);
+
+  // Renewal: trial ended, first yearly payment taken, expiry moves a year ahead
+  fakeGoogle.tok_pro_yearly = gSub({ product: 'raphai_pro', basePlan: 'yearly', expiresIn: 379 * DAY, accountId: gitaAccount });
+  const callsBefore = googleCalls;
+  r = await api('POST', RT, subNote('tok_pro_yearly', 2));
+  check('RTDN renewal -> 200, state re-fetched from Google', r.status === 200 && r.body.type === 'RENEWED' && googleCalls === callsBefore + 1, r.body);
+  token = gitaToken;
+  r = await api('GET', '/api/subscription');
+  check('after renewal: Pro yearly, trial over, expiry ~1 year ahead', r.body.subscription.active_plan === 'pro' && r.body.subscription.period === 'yearly'
+    && r.body.subscription.on_trial === false && new Date(r.body.subscription.expires_at) > new Date(Date.now() + 370 * DAY), r.body);
+
+  // Cancel: user turns off auto-renew; keeps Pro until the paid time ends
+  fakeGoogle.tok_pro_yearly = gSub({ product: 'raphai_pro', basePlan: 'yearly', state: 'SUBSCRIPTION_STATE_CANCELED', autoRenew: false, expiresIn: 379 * DAY, accountId: gitaAccount });
+  token = null;
+  r = await api('POST', RT, subNote('tok_pro_yearly', 3));
+  check('RTDN cancel -> 200', r.status === 200 && r.body.type === 'CANCELED', r.body);
+  token = gitaToken;
+  r = await api('GET', '/api/subscription');
+  check('after cancel: still Pro until expiry, auto_renew off', r.body.subscription.active_plan === 'pro' && r.body.subscription.auto_renew === false
+    && r.body.subscription.google_play.state === 'SUBSCRIPTION_STATE_CANCELED', r.body);
+
+  // Expired: paid time is over
+  fakeGoogle.tok_pro_yearly = gSub({ product: 'raphai_pro', basePlan: 'yearly', state: 'SUBSCRIPTION_STATE_EXPIRED', autoRenew: false, expiresIn: -60000, accountId: gitaAccount });
+  token = null;
+  r = await api('POST', RT, subNote('tok_pro_yearly', 13));
+  check('RTDN expired -> 200', r.status === 200 && r.body.type === 'EXPIRED', r.body);
+  token = gitaToken;
+  r = await api('GET', '/api/subscription');
+  check('after expiry RTDN: back to Free', r.body.subscription.active_plan === 'free', r.body);
+  r = await api('POST', '/api/coach', { question: 'protein foods' });
+  check('after expiry RTDN: coach locked -> 402', r.status === 402, r.body);
+
+  // Re-subscribe with a NEW token linked to the old one, then a refund (revoke)
+  fakeGoogle.tok_pro_again = gSub({ product: 'raphai_pro', basePlan: 'monthly', accountId: gitaAccount, linked: 'tok_pro_yearly' });
+  r = await api('POST', '/api/subscription/google/verify', { purchaseToken: 'tok_pro_again', productId: 'raphai_pro', basePlanId: 'monthly' });
+  check('re-subscribe (linkedPurchaseToken) -> Pro monthly', r.body.valid === true && r.body.subscription.active_plan === 'pro' && r.body.subscription.period === 'monthly', r.body);
+  const old = await db.get("SELECT superseded_by FROM google_play_purchases WHERE purchase_token = 'tok_pro_yearly'");
+  check('old token marked as replaced', old.superseded_by === 'tok_pro_again', old);
+  token = null;
+  r = await api('POST', RT, rtdnBody({ voidedPurchaseNotification: { purchaseToken: 'tok_pro_again', orderId: 'GPA.1', productType: 1, refundType: 1 } }));
+  check('RTDN refund (voided purchase) -> 200', r.status === 200, r.body);
+  token = gitaToken;
+  r = await api('GET', '/api/subscription');
+  check('after refund/revoke: access removed -> Free', r.body.subscription.active_plan === 'free', r.body);
+
+  // RTDN can arrive before the app sends the token: it is saved without a user,
+  // and the right user can still claim it later.
+  fakeGoogle.tok_early = gSub({ product: 'raphai_elite', basePlan: 'yearly', accountId: hariAccount });
+  token = null;
+  r = await api('POST', RT, subNote('tok_early', 4));
+  check('RTDN purchase before verify -> saved', r.status === 200 && r.body.type === 'PURCHASED', r.body);
+  token = hariToken;
+  r = await api('POST', '/api/subscription/google/verify', { purchaseToken: 'tok_early', productId: 'raphai_elite', basePlanId: 'yearly' });
+  check('verify after RTDN links it to the user -> Elite yearly', r.body.valid === true && r.body.subscription.active_plan === 'elite', r.body);
+  fakeGoogle.tok_early = gSub({ product: 'raphai_elite', basePlan: 'yearly', state: 'SUBSCRIPTION_STATE_ON_HOLD', expiresIn: -DAY, accountId: hariAccount });
+  token = null;
+  await api('POST', RT, subNote('tok_early', 5));
+  token = hariToken;
+  r = await api('GET', '/api/subscription');
+  check('RTDN on hold (payment failed) -> no access', r.body.subscription.active_plan === 'free', r.body);
   token = mainToken;
 
   console.log('\nYour data: export + delete account');

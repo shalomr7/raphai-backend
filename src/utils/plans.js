@@ -3,7 +3,7 @@
 // The subscription plans, in ONE place. Prices are in rupees (₹).
 // "rank" is used to compare plans: elite (2) includes pro (1) includes free (0).
 //
-// What stays FREE forever (and ad-free): all health logs, calories,
+// What stays FREE forever: all health logs, calories,
 // macros, water, BMI, steps, expenses, bills, 50/30/20 suggestion, RaphScore.
 // What needs PRO: body fat %, unlimited budgets and goals, SIP/EMI
 // calculators, the AI coach, HIIT plans (HIIT plans are locked in the app).
@@ -25,7 +25,6 @@ const PLANS = {
     rank: 0,
     prices: { monthly: 0, yearly: 0 },
     features: [
-      'No ads, ever',
       'Calories, macros, water, steps, sleep, mood, weight',
       'BMI and daily targets',
       'Expenses, bills, bill reminders, 50/30/20 suggestion',
@@ -56,4 +55,17 @@ const PLANS = {
   },
 };
 
-module.exports = { PLANS, FREE_LIMITS, TRIAL_DAYS };
+// Google Play Billing: subscription product id -> our plan id.
+// Each product has two base plans: "monthly" and "yearly". The 14-day
+// free trial is an OFFER on each base plan (set up in Play Console).
+const GOOGLE_PRODUCTS = {
+  raphai_pro: 'pro',
+  raphai_elite: 'elite',
+};
+// Google Play base plan id -> our period
+const GOOGLE_BASE_PLANS = {
+  monthly: 'monthly',
+  yearly: 'yearly',
+};
+
+module.exports = { PLANS, FREE_LIMITS, TRIAL_DAYS, GOOGLE_PRODUCTS, GOOGLE_BASE_PLANS };

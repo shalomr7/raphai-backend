@@ -18,9 +18,11 @@ const healthRoutes = require('./routes/health');
 const { foodsRouter, logsRouter } = require('./routes/foods');
 const wealthRoutes = require('./routes/wealth');
 const { plansRouter, subRouter, webhookRouter } = require('./routes/subscription');
+const { googleSubRouter, googleRtdnRouter } = require('./routes/googlePlay');
 const dashboardRoutes = require('./routes/dashboard');
 const coachRoutes = require('./routes/coach');
 const exportRoutes = require('./routes/export');
+const legalRoutes = require('./routes/legal');
 
 function createApp() {
   const app = express();
@@ -43,8 +45,12 @@ function createApp() {
   app.get('/api/health-check', (req, res) => res.json({ ok: true, app: 'RaphAi', time: new Date().toISOString() }));
 
   // ---- Public routes (no login needed) ----
+  app.use('/', legalRoutes); // GET /privacy and GET /terms (web pages)
   app.use('/api/auth', authRoutes);
   app.use('/api/plans', plansRouter);
+  // Google Play Real-time Developer Notifications (Pub/Sub push). Public, but
+  // protected by ?secret= (and optionally Pub/Sub's signed token).
+  app.use('/api/subscription/google/rtdn', googleRtdnRouter);
 
   // ---- Everything below needs a login token ----
   app.use('/api/profile', requireAuth, profileRoutes);
@@ -52,6 +58,7 @@ function createApp() {
   app.use('/api/foods', requireAuth, foodsRouter);
   app.use('/api/food-logs', requireAuth, logsRouter);
   app.use('/api/wealth', requireAuth, wealthRoutes);
+  app.use('/api/subscription/google', requireAuth, googleSubRouter);
   app.use('/api/subscription', requireAuth, subRouter);
   app.use('/api/dashboard', requireAuth, dashboardRoutes);
   app.use('/api/export', requireAuth, exportRoutes);

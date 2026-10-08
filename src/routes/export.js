@@ -57,6 +57,10 @@ router.get('/', asyncHandler(async (req, res) => {
   data.bill_payments = await db.all('SELECT p.* FROM bill_payments p JOIN bills b ON b.id = p.bill_id WHERE b.user_id = $1 ORDER BY p.bill_id, p.month', [userId]);
   // Foods the user added themselves
   data.custom_foods = await db.all('SELECT * FROM foods WHERE created_by = $1 ORDER BY id', [userId]);
+  // Google Play subscriptions (without Google's raw answer)
+  data.google_play_purchases = await db.all(`SELECT product_id, base_plan_id, offer_id, plan, period, subscription_state,
+    expires_at, auto_renew, in_trial, latest_order_id, created_at, updated_at
+    FROM google_play_purchases WHERE user_id = $1 ORDER BY created_at`, [userId]);
 
   res.setHeader('Content-Disposition', `attachment; filename="raphai-export-${userId}.json"`);
   res.json(data);

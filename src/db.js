@@ -358,6 +358,40 @@ const SCHEMA_SQL = `
   ALTER TABLE foods ADD COLUMN IF NOT EXISTS created_by INTEGER;
   ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS trial_used INTEGER NOT NULL DEFAULT 0;
 
+  -- Google Play Billing (added Oct 2026). Where the current plan came from:
+  -- NULL = trial / dev / Razorpay, 'google_play' = a Play subscription
+  ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS source TEXT;
+  ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS auto_renew INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS google_purchase_token TEXT;
+
+  -- One row per Google Play purchase token (the latest state Google told us).
+  -- purchase_token is the PRIMARY KEY, so one token can only belong to ONE user.
+  -- user_id is NULL when Google told us about a token (RTDN) before the app did.
+  CREATE TABLE IF NOT EXISTS google_play_purchases (
+    purchase_token        TEXT PRIMARY KEY,
+    user_id               INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    product_id            TEXT NOT NULL,          -- raphai_pro | raphai_elite
+    base_plan_id          TEXT,                   -- monthly | yearly
+    offer_id              TEXT,                   -- e.g. the free-trial offer id
+    plan                  TEXT NOT NULL,          -- pro | elite
+    period                TEXT,                   -- monthly | yearly
+    subscription_state    TEXT NOT NULL,          -- SUBSCRIPTION_STATE_ACTIVE, ..._EXPIRED, ...
+    expires_at            TIMESTAMPTZ,
+    auto_renew            INTEGER NOT NULL DEFAULT 0,
+    in_trial              INTEGER NOT NULL DEFAULT 0,
+    acknowledged          INTEGER NOT NULL DEFAULT 0,
+    linked_purchase_token TEXT,                   -- the older token this one replaced
+    superseded_by         TEXT,                   -- set when a newer token replaced this one
+    revoked_at            TIMESTAMPTZ,            -- set on a refund/revoke: this token never gives access again
+    latest_order_id       TEXT,
+    test_purchase         INTEGER NOT NULL DEFAULT 0,
+    raw                   JSONB,                  -- Google's full answer (for debugging)
+    created_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at            TIMESTAMPTZ NOT NULL DEFAULT now()
+  );
+  ALTER TABLE google_play_purchases ADD COLUMN IF NOT EXISTS revoked_at TIMESTAMPTZ;
+  CREATE INDEX IF NOT EXISTS google_play_purchases_user ON google_play_purchases (user_id);
+
   -- Indexes that make the common "my rows for this date" lookups fast
   CREATE INDEX IF NOT EXISTS food_logs_user_date ON food_logs (user_id, date);
   CREATE INDEX IF NOT EXISTS workouts_user_date ON workouts (user_id, date);

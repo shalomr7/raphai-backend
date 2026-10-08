@@ -25,3 +25,17 @@ services:
         value: "*"
       - key: NODE_VERSION
         value: "22"
+      # ---- Google Play Billing (subscriptions) ----
+      # The service-account key JSON (paste the whole file, or the file as base64).
+      - key: GOOGLE_PLAY_SERVICE_ACCOUNT_JSON
+        sync: false
+      - key: GOOGLE_PLAY_PACKAGE_NAME
+        value: com.raphai.app
+      # Long random text. The Pub/Sub push URL must end with ?secret=<this value>
+      - key: GOOGLE_RTDN_SECRET
+        sync: false
+      # Optional: turn on Pub/Sub signed-token checking (set both, or leave empty)
+      - key: GOOGLE_RTDN_AUDIENCE
+        sync: false
+      - key: GOOGLE_RTDN_SERVICE_ACCOUNT_EMAIL
+        sync: false
