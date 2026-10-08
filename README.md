@@ -43,7 +43,7 @@ npm test               # same as: node test/smoke.js
 
 It uses the database in `DATABASE_URL` (or `TEST_DATABASE_URL` if you set it). It makes a
 fresh, empty **schema** (a separate folder inside the database) just for the test, signs up a
-user, calls the main endpoints, prints `SMOKE TEST PASSED (228 checks)`, and then deletes that
+user, calls the main endpoints, prints `SMOKE TEST PASSED (272 checks)`, and then deletes that
 schema. Your real tables and data are not touched.
 
 **Start again with an empty database:** in Supabase, open the SQL Editor and run
@@ -81,12 +81,15 @@ raphai-backend/
 │   │   │                    hydration advice, budget left, trends, Life Graph patterns, brief
 │   │   └── foodParser.js    Reads "2 rotis and half katori dal" and finds the foods
 │   └── routes/           One file per part of the API
-│       ├── auth.js       Register, login, me
+│       ├── auth.js       Register (needs accepted_terms), login, me, delete account
+│       ├── consents.js   GET/POST /api/consents: consent records
+│       ├── deleteAccount.js  Public web page GET/POST /delete-account
+│       ├── legal.js      Public /privacy and /terms pages
 │       ├── profile.js    Get and change your profile
 │       ├── health.js     Targets, today, steps, workouts, water, sleep, mood, weight, reminders
 │       ├── foods.js      Food search and the food log
 │       ├── wealth.js     Expenses, budgets, savings goals, bills, SIP and EMI calculators
-│       ├── subscription.js  Plans, subscription, Razorpay order, verify, and webhook (stub)
+│       ├── subscription.js  Plans, subscription, trial, cancel, dev-activate
 │       ├── googlePlay.js    Google Play Billing: /api/subscription/google/verify and /rtdn
 │       ├── dashboard.js  The home screen data, RaphScore and streaks
 │       ├── export.js     GET /api/export: all your data as JSON
@@ -117,8 +120,7 @@ raphai-backend/
 | `GOOGLE_PLAY_PACKAGE_NAME` | The Android app id | `com.raphai.app` in render.yaml |
 | `GOOGLE_RTDN_SECRET` | Long random text; the Pub/Sub push URL must end with `?secret=` this value | empty (RTDN answers 503) |
 | `GOOGLE_RTDN_AUDIENCE` / `GOOGLE_RTDN_SERVICE_ACCOUNT_EMAIL` | Optional: also check Pub/Sub's signed token | empty (off) |
-| `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` | Razorpay keys (**not used by the app any more**; kept for later). Leave empty for **stub mode** | empty |
-| `RAZORPAY_WEBHOOK_SECRET` | Secret for checking Razorpay webhooks | empty |
+| `TRUST_PROXY_HOPS` | Proxies in front of the server (Render: 1); used to read the real IP for security logs and the delete-account rate limit | `1` |
 
 ---
 
@@ -168,12 +170,12 @@ Status codes: 400 bad input, 401 not logged in, 402 plan needed, 404 not found, 
 | POST | `/api/auth/register` | Sign up. Returns a token |
 | POST | `/api/auth/login` | Log in. Returns a token |
 | GET | `/api/plans` | Plans and prices |
-| POST | `/api/webhooks/razorpay` | Razorpay calls this after a payment |
+| GET, POST | `/delete-account` | Public web page to delete an account without the app (email + password form; max 5 tries per IP per hour) |
 
 ```bash
 curl -X POST http://localhost:4000/api/auth/register \
   -H "Content-Type: application/json" \
-  -d '{"name":"Ravi","email":"ravi@example.com","password":"secret123"}'
+  -d '{"name":"Ravi","email":"ravi@example.com","password":"secret123","accepted_terms":true}'
 # -> { "token": "eyJhbGci...", "user": { "id": 1, "name": "Ravi", "email": "ravi@example.com" } }
 ```
 
@@ -185,6 +187,8 @@ In the examples below, `$T` is your token: `T=eyJhbGci...`
 | GET | `/api/auth/me` | Who am I |
 | DELETE | `/api/auth/me` | Delete your account and ALL your data. Send `{ "password": "..." }` to confirm |
 | GET | `/api/export` | Download ALL your data as one JSON file (no password hash) |
+| GET | `/api/consents` | Your consent records: current choice per type + history |
+| POST | `/api/consents` | Record a consent change `{ "type": "ads_personalised", "version": "2026-10-08", "granted": false }`. Types: terms_privacy, health_connect, background_health, ads_personalised, gemini |
 | GET | `/api/profile` | Your profile, plus a guide to activity factors |
 | PUT | `/api/profile` | Change any profile fields (send only the ones that change) |
 
@@ -292,8 +296,6 @@ curl "http://localhost:4000/api/wealth/calculators/sip?monthly=5000&rate=12&year
 | GET | `/api/subscription` | Your plan and when it ends |
 | POST | `/api/subscription/google/verify` | **Google Play.** After a purchase (or Restore) the app sends `{ "purchaseToken", "productId": "raphai_pro", "basePlanId": "yearly" }`. Answers `{ valid, pending, google, subscription }` |
 | POST | `/api/subscription/google/rtdn?secret=...` | **Public.** Google Cloud Pub/Sub pushes Play notifications here |
-| POST | `/api/subscription/order` | (Razorpay, unused) Start a payment `{ "plan": "pro", "period": "yearly" }` |
-| POST | `/api/subscription/verify` | After paying, send `{ razorpay_order_id, razorpay_payment_id, razorpay_signature }` |
 | POST | `/api/subscription/cancel` | Go back to Free (409 for a Google Play plan: cancel it in the Play Store) |
 | POST | `/api/subscription/trial` | Start the **14-day free Pro trial** (once per account; 409 if already used) |
 | POST | `/api/subscription/dev-activate` | **Development only.** Turns on a plan without paying `{ "plan": "pro", "period": "monthly" }` |
@@ -321,7 +323,8 @@ Safety rules: one purchase token can only be linked to one RaphAi account (409 o
 
 Without the Google settings, verify answers **503 "Google Play billing is not configured"**. The smoke test replaces Google with a fake, so it checks all of this without a Play Console. The step-by-step setup for the Play Console, Google Cloud and Pub/Sub is in the separate owner checklist (`raphai-play-billing-setup.md`).
 
-**About Razorpay (stub, no longer used by the app):** with no keys in `.env`, `/order` makes a **fake** order (its id starts with `order_stub_`) and nothing is charged. With keys, it creates a real order using the Razorpay Orders API. Both `/verify` and the webhook check the HMAC-SHA256 signature. Test with Razorpay **test** keys before you go live, and in the Razorpay dashboard point the webhook at `https://your-server/api/webhooks/razorpay` with the events `payment.captured` and `payment.failed`.
+
+**Privacy records.** Sign-up needs `"accepted_terms": true` (the app's "I am 18 or older and agree to the Terms and Privacy Policy" checkbox) and stores a `terms_privacy` consent (version `2026-10-08`) in the `consents` table. Security events (`login_success`, `login_failed`, `account_deleted`, `export`) are written to `security_logs` in the same database (Supabase, Mumbai); rows older than 1 year are purged at startup and once a day. `users.last_active_at` is updated at most once a day when the app is used. **Inactive accounts are not deleted automatically yet** — this is only recorded for a later job (the policy says we *may* delete after 3 years, with 48 hours' notice). The old `payments` table (from a removed payment stub) is left in the database but unused.
 
 ### Dashboard and coach
 | Method | URL | What it does |
@@ -497,8 +500,6 @@ Give this address to the phone app as its API address.
 - **Free Supabase projects pause** after about a week with no use. Open the Supabase dashboard and click
   **Restore** if that happens.
 - When you push new code to GitHub, Render deploys it again by itself.
-- To add Razorpay keys later: Render → your service → **Environment** → add `RAZORPAY_KEY_ID`,
-  `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`.
 - `CORS_ORIGIN=*` lets any website call the API. When you have a real website, change it to that address.
 - To run the smoke test against Supabase from your computer: put the Supabase string in `.env` as
   `DATABASE_URL` and run `npm test`. It uses its own temporary schema and cleans up after itself.

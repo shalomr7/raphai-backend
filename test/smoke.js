@@ -11,7 +11,6 @@
 // ------------------------------------------------------------
 
 require('dotenv').config();
-const crypto = require('crypto');
 
 // Settings for the test (set BEFORE loading the app)
 if (process.env.TEST_DATABASE_URL) process.env.DATABASE_URL = process.env.TEST_DATABASE_URL;
@@ -23,9 +22,6 @@ const testSchema = `raphai_smoke_${Date.now()}_${process.pid}`;
 process.env.DB_SCHEMA = testSchema;
 process.env.JWT_SECRET = 'smoke-test-secret';
 process.env.NODE_ENV = 'test';
-process.env.RAZORPAY_KEY_ID = '';
-process.env.RAZORPAY_KEY_SECRET = '';
-process.env.RAZORPAY_WEBHOOK_SECRET = 'smoke_webhook_secret';
 // Google Play: fake settings. The Google API itself is replaced by a fake below.
 const FAKE_SA = JSON.stringify({ type: 'service_account', client_email: 'smoke@example.iam.gserviceaccount.com', private_key: '-----BEGIN PRIVATE KEY-----\nfake\n-----END PRIVATE KEY-----\n' });
 process.env.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON = Buffer.from(FAKE_SA).toString('base64'); // base64 form
@@ -111,9 +107,9 @@ async function run() {
   }
 
   console.log('\nAuth');
-  let r = await api('POST', '/api/auth/register', { name: 'Ravi', email: 'ravi@example.com', password: 'secret123' });
+  let r = await api('POST', '/api/auth/register', { name: 'Ravi', email: 'ravi@example.com', password: 'secret123', accepted_terms: true });
   check('register returns 201 + token', r.status === 201 && r.body.token, r.body);
-  r = await api('POST', '/api/auth/register', { name: 'Ravi', email: 'ravi@example.com', password: 'secret123' });
+  r = await api('POST', '/api/auth/register', { name: 'Ravi', email: 'ravi@example.com', password: 'secret123', accepted_terms: true });
   check('duplicate email -> 409', r.status === 409, r.body);
   r = await api('POST', '/api/auth/login', { email: 'ravi@example.com', password: 'wrongpass' });
   check('wrong password -> 401', r.status === 401, r.body);
@@ -124,6 +120,7 @@ async function run() {
   token = (await api('POST', '/api/auth/login', { email: 'ravi@example.com', password: 'secret123' })).body.token;
   r = await api('GET', '/api/auth/me');
   check('me', r.status === 200 && r.body.user.email === 'ravi@example.com', r.body);
+  await privacyTests(r.body.user.id);
 
   console.log('\nProfile + targets');
   r = await api('GET', '/api/health/targets');
@@ -282,16 +279,11 @@ async function run() {
   r = await api('POST', '/api/coach', { question: 'calories left?' });
   check('coach on free: 6th question -> 402', r.status === 402, r.body);
   r = await api('POST', '/api/subscription/order', { plan: 'pro', period: 'yearly' });
-  check('create stub order (79900 paise)', r.status === 201 && r.body.stub === true && r.body.amount_paise === 79900, r.body);
-  const orderId = r.body.order_id;
-
-  // Pretend to be Razorpay calling our webhook
-  const event = JSON.stringify({ event: 'payment.captured', payload: { payment: { entity: { id: 'pay_test_1', order_id: orderId } } } });
-  r = await api('POST', '/api/webhooks/razorpay', event, { 'X-Razorpay-Signature': 'bad-signature' });
-  check('webhook with bad signature -> 400', r.status === 400, r.body);
-  const sig = crypto.createHmac('sha256', process.env.RAZORPAY_WEBHOOK_SECRET).update(event).digest('hex');
-  r = await api('POST', '/api/webhooks/razorpay', event, { 'X-Razorpay-Signature': sig });
-  check('webhook with good signature -> 200', r.status === 200, r.body);
+  check('old payment-order stub is gone -> 404', r.status === 404, r.body);
+  r = await api('POST', '/api/webhooks/razorpay', '{}');
+  check('old payment webhook is gone -> 404', r.status === 404, r.body);
+  r = await api('POST', '/api/subscription/dev-activate', { plan: 'pro', period: 'yearly' });
+  check('dev-activate pro yearly (development only)', r.status === 200, r.body);
   r = await api('GET', '/api/subscription');
   check('now on pro yearly', r.body.subscription.active_plan === 'pro' && r.body.subscription.period === 'yearly', r.body);
 
@@ -342,7 +334,7 @@ async function run() {
 
   console.log('\nFree trial (second user)');
   const mainToken = token;
-  token = (await api('POST', '/api/auth/register', { name: 'Priya', email: 'priya@example.com', password: 'secret123' })).body.token;
+  token = (await api('POST', '/api/auth/register', { name: 'Priya', email: 'priya@example.com', password: 'secret123', accepted_terms: true })).body.token;
   r = await api('POST', '/api/subscription/trial');
   check('start 14-day Pro trial', r.status === 200 && r.body.subscription.active_plan === 'pro' && r.body.subscription.on_trial === true, r.body);
   r = await api('POST', '/api/coach', { question: 'protein foods' });
@@ -355,7 +347,7 @@ async function run() {
   console.log('\nGoogle Play Billing (Google API mocked)');
   const savedSa = process.env.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON;
   delete process.env.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON;
-  token = (await api('POST', '/api/auth/register', { name: 'Gita', email: 'gita@example.com', password: 'secret123' })).body.token;
+  token = (await api('POST', '/api/auth/register', { name: 'Gita', email: 'gita@example.com', password: 'secret123', accepted_terms: true })).body.token;
   const gitaToken = token;
   r = await api('POST', '/api/subscription/google/verify', { purchaseToken: 'tok_x', productId: 'raphai_pro', basePlanId: 'yearly' });
   check('verify without Google settings -> 503 billing not configured', r.status === 503 && /not configured/i.test(r.body.error), r.body);
@@ -389,7 +381,7 @@ async function run() {
   r = await api('POST', '/api/subscription/cancel');
   check('cancel a Play plan in-app -> 409 (use Play Store)', r.status === 409, r.body);
 
-  token = (await api('POST', '/api/auth/register', { name: 'Hari', email: 'hari@example.com', password: 'secret123' })).body.token;
+  token = (await api('POST', '/api/auth/register', { name: 'Hari', email: 'hari@example.com', password: 'secret123', accepted_terms: true })).body.token;
   const hariToken = token;
   const hariAccount = (await api('GET', '/api/subscription')).body.subscription.play_account_id;
   r = await api('POST', '/api/subscription/google/verify', { purchaseToken: 'tok_pro_yearly', productId: 'raphai_pro', basePlanId: 'yearly' });
@@ -512,14 +504,26 @@ async function run() {
   await intelligenceTests({ D, mainToken });
   token = mainToken;
 
+  await deleteAccountWebTests();
+  token = mainToken;
+
   console.log('\nYour data: export + delete account');
   r = await api('GET', '/api/export');
   check('export has your data and no password', r.status === 200 && r.body.user.email === 'ravi@example.com' && r.body.expenses.length >= 2
     && r.body.food_logs.length >= 1 && r.body.custom_foods.length === 1 && !JSON.stringify(r.body).includes('password_hash'), Object.keys(r.body));
+  const raviId = r.body.user.id;
+  check('export includes consent records, not the old payments table', Array.isArray(r.body.consents) && r.body.consents.some((c) => c.type === 'terms_privacy' && c.granted === true)
+    && !('payments' in r.body), Object.keys(r.body));
+  const exportLog = await db.get("SELECT * FROM security_logs WHERE user_id = $1 AND event = 'export' ORDER BY id DESC LIMIT 1", [raviId]);
+  check('security log: export written', Boolean(exportLog), exportLog);
   r = await api('DELETE', '/api/auth/me', { password: 'wrongpass' });
   check('delete account needs the right password -> 401', r.status === 401, r.body);
   r = await api('DELETE', '/api/auth/me', { password: 'secret123' });
   check('delete account', r.status === 200 && r.body.deleted === true, r.body);
+  const delLog = await db.get("SELECT * FROM security_logs WHERE user_id = $1 AND event = 'account_deleted'", [raviId]);
+  check('in-app delete: security log account_deleted', Boolean(delLog), delLog);
+  const keptConsents = await db.all('SELECT * FROM consents WHERE user_id = $1', [raviId]);
+  check('in-app delete: consent records kept, marked account_deleted_at', keptConsents.length >= 1 && keptConsents.every((c) => c.account_deleted_at), keptConsents);
   token = null;
   r = await api('POST', '/api/auth/login', { email: 'ravi@example.com', password: 'secret123' });
   check('deleted account cannot log in', r.status === 401, r.body);
@@ -540,7 +544,7 @@ function zeroPaths(v, path = '$', out = []) {
   return out;
 }
 async function newUser(name, email) {
-  const r = await api('POST', '/api/auth/register', { name, email, password: 'secret123' });
+  const r = await api('POST', '/api/auth/register', { name, email, password: 'secret123', accepted_terms: true });
   token = r.body.token;
   return { token, id: r.body.user.id };
 }
@@ -777,6 +781,143 @@ async function intelligenceTests({ D, mainToken }) {
   for (let i = 0; i < 10; i++) await db.run('INSERT INTO sleep_logs (user_id, date, hours) VALUES ($1, $2, 7)', [tara.id, addDays(D, -(i + 1))]);
   r = await api('GET', '/api/insights/patterns');
   check('patterns: 10 days -> enough_data false, days_needed 4', r.body.enough_data === false && r.body.days_needed === 4, r.body);
+}
+
+// ---------------------------------------------------------------------
+// Privacy: consent at sign-up, consent records, security logs,
+// last_active_at, purge of old records, public /delete-account page.
+// ---------------------------------------------------------------------
+const { purgeOldRecords } = require('../src/services/securityLog');
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+async function privacyTests(raviId) {
+  console.log('\nPrivacy: consent at sign-up');
+  const saved = token; token = null;
+  let r = await api('POST', '/api/auth/register', { name: 'No Terms', email: 'noterms@example.com', password: 'secret123' });
+  check('register without accepted_terms -> 400', r.status === 400 && /Terms and Privacy Policy/.test(r.body.error || r.body.message || JSON.stringify(r.body)), r.body);
+  r = await api('POST', '/api/auth/register', { name: 'No Terms', email: 'noterms@example.com', password: 'secret123', accepted_terms: 'true' });
+  check('register with accepted_terms "true" (text) -> 400 (must be exactly true)', r.status === 400, r.body);
+  r = await api('POST', '/api/auth/register', { name: 'No Terms', email: 'noterms@example.com', password: 'secret123', accepted_terms: false });
+  check('register with accepted_terms false -> 400', r.status === 400, r.body);
+  check('no account was created without consent', !(await db.get("SELECT id FROM users WHERE email = 'noterms@example.com'")));
+  r = await api('GET', '/api/consents');
+  check('GET /api/consents needs login -> 401', r.status === 401, r.body);
+  token = saved;
+
+  console.log('\nPrivacy: consent records');
+  r = await api('GET', '/api/consents');
+  check('sign-up stored terms_privacy consent, version 2026-10-08', r.status === 200 && r.body.consents.terms_privacy
+    && r.body.consents.terms_privacy.granted === true && r.body.consents.terms_privacy.version === '2026-10-08' && r.body.terms_version === '2026-10-08', r.body);
+  r = await api('POST', '/api/consents', { type: 'ads_personalised', version: '2026-10-08', granted: true });
+  check('POST consent ads_personalised yes -> 201', r.status === 201 && r.body.consent.type === 'ads_personalised' && r.body.consent.granted === true, r.body);
+  r = await api('POST', '/api/consents', { type: 'ads_personalised', version: '2026-10-08', granted: false });
+  check('POST consent ads_personalised no -> 201', r.status === 201 && r.body.consent.granted === false, r.body);
+  r = await api('POST', '/api/consents', { type: 'gemini', version: '2026-10-08', granted: false });
+  check('POST consent gemini no -> 201', r.status === 201, r.body);
+  r = await api('POST', '/api/consents', { type: 'selling_data', version: '1', granted: true });
+  check('unknown consent type -> 400', r.status === 400, r.body);
+  r = await api('POST', '/api/consents', { type: 'health_connect', version: '1' });
+  check('consent without granted -> 400', r.status === 400, r.body);
+  r = await api('POST', '/api/consents', { type: 'health_connect', version: '1', granted: 'yes' });
+  check('consent with granted "yes" -> 400', r.status === 400, r.body);
+  r = await api('POST', '/api/consents', { type: 'health_connect', granted: true });
+  check('consent without version -> 400', r.status === 400, r.body);
+  r = await api('GET', '/api/consents');
+  check('current ads_personalised = latest (no), history keeps every change',
+    r.body.consents.ads_personalised.granted === false && r.body.history.filter((c) => c.type === 'ads_personalised').length === 2
+    && r.body.history.length === 4 && r.body.consents.gemini.granted === false, r.body);
+
+  console.log('\nPrivacy: security logs');
+  const savedLogin = token; token = null;
+  await api('POST', '/api/auth/login', { email: 'ravi@example.com', password: 'wrong-again' }, { 'User-Agent': 'SmokeTest/1.0' });
+  await api('POST', '/api/auth/login', { email: 'nobody@example.com', password: 'whatever1' });
+  await api('POST', '/api/auth/login', { email: 'ravi@example.com', password: 'secret123' }, { 'User-Agent': 'SmokeTest/1.0' });
+  token = savedLogin;
+  const fail = await db.get("SELECT * FROM security_logs WHERE user_id = $1 AND event = 'login_failed' AND user_agent = 'SmokeTest/1.0'", [raviId]);
+  check('login_failed logged with user id, IP and user agent', fail && fail.ip && fail.created_at, fail);
+  const unknown = await db.get("SELECT * FROM security_logs WHERE user_id IS NULL AND event = 'login_failed'");
+  check('login_failed for an unknown email logged with no user id', Boolean(unknown), unknown);
+  const okLog = await db.get("SELECT * FROM security_logs WHERE user_id = $1 AND event = 'login_success' AND user_agent = 'SmokeTest/1.0'", [raviId]);
+  check('login_success logged', Boolean(okLog), okLog);
+  check('security logs never store passwords', !(await db.get("SELECT 1 FROM security_logs WHERE user_agent LIKE '%secret123%' OR ip LIKE '%secret%'")));
+
+  console.log('\nPrivacy: purge of old records');
+  await db.run("INSERT INTO security_logs (user_id, event, ip, created_at) VALUES (NULL, 'login_failed', '10.0.0.1', now() - interval '400 days')");
+  await db.run("INSERT INTO security_logs (user_id, event, ip, created_at) VALUES (NULL, 'login_failed', '10.0.0.2', now() - interval '300 days')");
+  await db.run("INSERT INTO consents (user_id, type, version, granted, account_deleted_at) VALUES (999901, 'terms_privacy', 'old', true, now() - interval '400 days')");
+  await db.run("INSERT INTO consents (user_id, type, version, granted, account_deleted_at) VALUES (999902, 'terms_privacy', 'old', true, now() - interval '100 days')");
+  const purged = await purgeOldRecords();
+  check('purge removes security logs older than 1 year', purged.security_logs === 1
+    && !(await db.get("SELECT 1 FROM security_logs WHERE ip = '10.0.0.1'")) && Boolean(await db.get("SELECT 1 FROM security_logs WHERE ip = '10.0.0.2'")), purged);
+  check('purge removes consent records 1 year after account deletion only', purged.consents === 1
+    && !(await db.get('SELECT 1 FROM consents WHERE user_id = 999901')) && Boolean(await db.get('SELECT 1 FROM consents WHERE user_id = 999902'))
+    && Boolean(await db.get('SELECT 1 FROM consents WHERE user_id = $1', [raviId])), purged);
+
+  console.log('\nPrivacy: last_active_at');
+  const u = await newUser('Asha', 'asha@example.com'); // register only, no logged-in request yet
+  let row = await db.get('SELECT last_active_at FROM users WHERE id = $1', [u.id]);
+  check('register sets last_active_at', Boolean(row.last_active_at), row);
+  await db.run('UPDATE users SET last_active_at = NULL WHERE id = $1', [u.id]);
+  await api('GET', '/api/auth/me');
+  for (let i = 0; i < 20 && !(row = await db.get('SELECT last_active_at FROM users WHERE id = $1', [u.id])).last_active_at; i++) await wait(50);
+  check('a logged-in request updates last_active_at', Boolean(row.last_active_at), row);
+  await db.run("UPDATE users SET last_active_at = now() - interval '2 days' WHERE id = $1", [u.id]);
+  await api('GET', '/api/auth/me');
+  await api('GET', '/api/profile');
+  await wait(150);
+  row = await db.get("SELECT last_active_at < now() - interval '1 day' AS still_old FROM users WHERE id = $1", [u.id]);
+  check('throttled: at most one update per user per day', row.still_old === true, row);
+  token = saved;
+}
+
+async function deleteAccountWebTests() {
+  console.log('\nPublic /delete-account page');
+  const { resetRateLimit } = require('../src/routes/deleteAccount');
+  resetRateLimit();
+  let res = await fetch(base + '/delete-account');
+  let html = await res.text();
+  check('GET /delete-account -> 200 html, no login', res.status === 200 && /^text\/html/.test(res.headers.get('content-type') || ''), res.status);
+  check('page explains deleted + kept data and has a POST form', html.includes('What gets deleted') && html.includes('What we keep')
+    && /<form method="post" action="\/delete-account"/.test(html) && html.includes('type="password"'), html.slice(0, 200));
+  check('page says deleting does not cancel Google Play + links subscriptions', html.includes('does not cancel a Google Play subscription')
+    && html.includes('href="https://play.google.com/store/account/subscriptions"'));
+  check('page matches policy: Mumbai logs 1 year, 7-day backups', html.includes('Mumbai (India) database for <strong>1 year</strong>')
+    && html.includes('backups are kept for up to 7 days where our database plan provides them'));
+  check('page cannot be framed, not cached', res.headers.get('x-frame-options') === 'DENY' && res.headers.get('cache-control') === 'no-store');
+
+  token = (await api('POST', '/api/auth/register', { name: 'Webby', email: 'webby@example.com', password: 'secret123', accepted_terms: true })).body.token;
+  const webby = (await api('GET', '/api/auth/me')).body.user;
+  await api('POST', '/api/health/water', { ml: 250 });
+  token = null;
+  const form = (o) => fetch(base + '/delete-account', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(o).toString() });
+
+  res = await form({ email: 'webby@example.com', password: 'wrongpass' });
+  const wrongHtml = await res.text();
+  res = await fetch(base + '/delete-account?email=webby@example.com&password=secret123', { method: 'GET' });
+  check('GET with credentials in the URL never deletes', res.status === 200 && Boolean(await db.get('SELECT 1 FROM users WHERE id = $1', [webby.id])));
+  const res2 = await form({ email: 'nobody-here@example.com', password: 'secret123' });
+  const unknownHtml = await res2.text();
+  const generic = 'We could not delete an account with those details.';
+  check('wrong password -> 401 generic message', wrongHtml.includes(generic) && Boolean(await db.get('SELECT 1 FROM users WHERE id = $1', [webby.id])));
+  check('unknown email -> same 401 generic message', res2.status === 401 && unknownHtml.includes(generic));
+  res = await form({ email: 'WEBBY@example.com', password: 'secret123' });
+  html = await res.text();
+  check('right email + password -> 200 deleted', res.status === 200 && html.includes('have been deleted') && html.includes('https://play.google.com/store/account/subscriptions'), html.slice(0, 300));
+  check('web delete removed the user and their data', !(await db.get('SELECT 1 FROM users WHERE id = $1', [webby.id]))
+    && !(await db.get('SELECT 1 FROM water_logs WHERE user_id = $1', [webby.id])) && !(await db.get('SELECT 1 FROM profiles WHERE user_id = $1', [webby.id])));
+  check('web delete: same logic as in-app (consents kept + marked, security log written)',
+    Boolean(await db.get('SELECT 1 FROM consents WHERE user_id = $1 AND account_deleted_at IS NOT NULL', [webby.id]))
+    && Boolean(await db.get("SELECT 1 FROM security_logs WHERE user_id = $1 AND event = 'account_deleted'", [webby.id])));
+  let r = await api('POST', '/api/auth/login', { email: 'webby@example.com', password: 'secret123' });
+  check('web-deleted account cannot log in', r.status === 401, r.body);
+  res = await form({ email: 'webby@example.com', password: 'secret123' }); // 4th attempt
+  check('deleting again -> generic 401', res.status === 401);
+  res = await form({ email: 'x@example.com', password: 'y' }); // 5th
+  check('5th attempt this hour still answered', res.status === 401);
+  res = await form({ email: 'x@example.com', password: 'y' }); // 6th
+  html = await res.text();
+  check('6th attempt from the same IP in an hour -> 429', res.status === 429 && html.includes('Too many attempts'), res.status);
+  resetRateLimit();
 }
 
 // Set up the database, start the app on a random free port (0), run the tests, stop.

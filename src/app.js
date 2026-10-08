@@ -17,7 +17,7 @@ const { router: profileRoutes } = require('./routes/profile');
 const healthRoutes = require('./routes/health');
 const { foodsRouter, logsRouter } = require('./routes/foods');
 const wealthRoutes = require('./routes/wealth');
-const { plansRouter, subRouter, webhookRouter } = require('./routes/subscription');
+const { plansRouter, subRouter } = require('./routes/subscription');
 const { googleSubRouter, googleRtdnRouter } = require('./routes/googlePlay');
 const dashboardRoutes = require('./routes/dashboard');
 const coachRoutes = require('./routes/coach');
@@ -26,9 +26,15 @@ const legalRoutes = require('./routes/legal');
 const insightsRoutes = require('./routes/insights');
 const foodRoutes = require('./routes/food');
 const activityRoutes = require('./routes/activity');
+const { router: consentRoutes } = require('./routes/consents');
+const { router: deleteAccountRoutes } = require('./routes/deleteAccount');
 
 function createApp() {
   const app = express();
+
+  // Render puts one proxy in front of us. Trust it, so req.ip is the real
+  // user's IP (used by security logs and the /delete-account rate limit).
+  app.set('trust proxy', Number(process.env.TRUST_PROXY_HOPS ?? 1));
 
   // CORS lets a web app on another address call this API.
   // CORS_ORIGIN="*" allows all (fine for development).
@@ -36,10 +42,6 @@ function createApp() {
     ? process.env.CORS_ORIGIN.split(',').map((s) => s.trim())
     : '*';
   app.use(cors({ origin }));
-
-  // The Razorpay webhook needs the RAW body to check the signature,
-  // so it is added BEFORE express.json().
-  app.use('/api/webhooks', express.raw({ type: '*/*', limit: '1mb' }), webhookRouter);
 
   // Read JSON bodies (e.g. { "email": "..." }) into req.body
   app.use(express.json({ limit: '100kb' }));
@@ -49,6 +51,7 @@ function createApp() {
 
   // ---- Public routes (no login needed) ----
   app.use('/', legalRoutes); // GET /privacy and GET /terms (web pages)
+  app.use('/', deleteAccountRoutes); // GET + POST /delete-account (web page, no app needed)
   app.use('/api/auth', authRoutes);
   app.use('/api/plans', plansRouter);
   // Google Play Real-time Developer Notifications (Pub/Sub push). Public, but
@@ -65,6 +68,7 @@ function createApp() {
   app.use('/api/subscription', requireAuth, subRouter);
   app.use('/api/dashboard', requireAuth, dashboardRoutes);
   app.use('/api/export', requireAuth, exportRoutes);
+  app.use('/api/consents', requireAuth, consentRoutes);
   // RaphAi Intelligence (each route checks Free vs Pro itself)
   app.use('/api/insights', requireAuth, insightsRoutes);
   app.use('/api/food', requireAuth, foodRoutes);       // POST /api/food/parse

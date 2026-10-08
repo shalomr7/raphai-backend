@@ -8,6 +8,7 @@
 
 const jwt = require('jsonwebtoken');
 const { HttpError } = require('../utils/http');
+const db = require('../db');
 
 function jwtSecret() {
   const secret = process.env.JWT_SECRET;
@@ -35,10 +36,34 @@ function requireAuth(req, res, next) {
   try {
     const payload = jwt.verify(token, jwtSecret());
     req.user = { id: payload.sub, email: payload.email };
+    touchLastActive(req.user.id);
     next();
   } catch (err) {
     next(new HttpError(401, 'Your login has expired or is invalid. Please log in again.'));
   }
 }
 
-module.exports = { requireAuth, signToken };
+// ------------------------------------------------------------
+// users.last_active_at: when the user last used the app.
+// Updated at most ONCE PER DAY per user (an in-memory note stops extra
+// queries, and the SQL itself also skips rows touched in the last 24 hours).
+// It runs in the background and never slows down or breaks the request.
+// NOTE: this only RECORDS activity. The Privacy Policy says we *may* delete
+// accounts after 3 years of inactivity (with 48 hours' notice); that job is
+// not built yet, so nothing is ever deleted automatically.
+// ------------------------------------------------------------
+const lastTouched = new Map(); // userId -> 'YYYY-MM-DD' (UTC)
+function touchLastActive(userId, { force = false } = {}) {
+  const day = new Date().toISOString().slice(0, 10);
+  if (!force && lastTouched.get(userId) === day) return Promise.resolve();
+  if (lastTouched.size > 50000) lastTouched.clear(); // keep memory bounded
+  lastTouched.set(userId, day);
+  return db.run(`UPDATE users SET last_active_at = now()
+    WHERE id = $1 AND (last_active_at IS NULL OR last_active_at < now() - interval '1 day')`, [userId])
+    .catch((err) => {
+      lastTouched.delete(userId);
+      console.error('Could not update last_active_at:', err.message);
+    });
+}
+
+module.exports = { requireAuth, signToken, touchLastActive };
