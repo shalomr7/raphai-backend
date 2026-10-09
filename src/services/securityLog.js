@@ -10,7 +10,7 @@
 
 const db = require('../db');
 
-const EVENTS = ['login_success', 'login_failed', 'password_change', 'account_deleted', 'export', 'logout_all'];
+const EVENTS = ['login_success', 'login_failed', 'password_change', 'account_deleted', 'export', 'logout_all', 'password_reset_requested', 'password_reset'];
 const RETENTION = '1 year';
 const DAY_MS = 24 * 60 * 60 * 1000;
 

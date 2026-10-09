@@ -18,6 +18,7 @@
 //   combineAreas, explainChange
 // ------------------------------------------------------------
 
+const money = require('../utils/money');
 const db = require('../db');
 const calc = require('../utils/calc');
 const { today, addDays, hourNow, weekday, daysInMonth } = require('../utils/dates');
@@ -89,8 +90,8 @@ async function loadDays(userId, from, to) {
             FROM food_logs l JOIN foods f ON f.id = l.food_id WHERE l.user_id = $1 AND l.date >= $2 AND l.date <= $3 GROUP BY l.date`, p),
     db.all(`SELECT date, SUM(minutes) AS min, COUNT(*)::int AS n FROM workouts WHERE ${W} GROUP BY date`, p),
     db.all(`SELECT date,
-              SUM(amount) FILTER (WHERE category <> 'Investment') AS spend,
-              SUM(amount) FILTER (WHERE category = 'Food' OR note ~* '(swiggy|zomato|delivery|takeaway|order)') AS food_out,
+              SUM(amount_paise) FILTER (WHERE category <> 'Investment') AS spend_paise,
+              SUM(amount_paise) FILTER (WHERE category = 'Food' OR note ~* '(swiggy|zomato|delivery|takeaway|order)') AS food_out_paise,
               COUNT(*)::int AS n
             FROM expenses WHERE ${W} GROUP BY date`, p),
     db.all(`SELECT DISTINCT ON (date) date, weight_kg FROM weight_logs WHERE ${W} ORDER BY date, id DESC`, p),
@@ -108,7 +109,7 @@ async function loadDays(userId, from, to) {
   put(water, (d, r) => { d.water = r.ml; });
   put(food, (d, r) => { d.kcal = r.kcal; d.protein = r.protein; d.food_n = r.n; });
   put(workouts, (d, r) => { d.workout_min = r.min; });
-  put(expenses, (d, r) => { d.spend = r.spend || 0; d.food_out = r.food_out || 0; d.expense_n = r.n; });
+  put(expenses, (d, r) => { d.spend_paise = Number(r.spend_paise || 0); d.spend = money.rupees(d.spend_paise); d.food_out = money.rupees(r.food_out_paise); d.expense_n = r.n; });
   put(weight, (d, r) => { d.weight = r.weight_kg; });
   // Active minutes from the phone are kept apart from logged workouts
   put(activity, (d, r) => { d.active_min = r.active_minutes; d.resting_hr = r.resting_hr; });
@@ -127,9 +128,9 @@ async function loadContext(userId, D) {
     loadDays(userId, from, D),
     db.get('SELECT * FROM profiles WHERE user_id = $1', [userId]),
     db.get('SELECT name FROM users WHERE id = $1', [userId]),
-    db.all(`SELECT b.id, b.name, b.amount, b.due_day, p.month AS paid_month
+    db.all(`SELECT b.id, b.name, b.amount, b.amount_paise, b.due_day, p.month AS paid_month
             FROM bills b LEFT JOIN bill_payments p ON p.bill_id = b.id AND p.month = $2 WHERE b.user_id = $1`, [userId, D.slice(0, 7)]),
-    db.all('SELECT month, category, amount FROM budgets WHERE user_id = $1 AND month >= $2', [userId, monthStart.slice(0, 7)]),
+    db.all('SELECT month, category, amount, amount_paise FROM budgets WHERE user_id = $1 AND month >= $2', [userId, monthStart.slice(0, 7)]),
     db.get(`SELECT MIN(d) AS d FROM (
               SELECT MIN(date) d FROM food_logs WHERE user_id = $1 UNION ALL SELECT MIN(date) FROM water_logs WHERE user_id = $1
               UNION ALL SELECT MIN(date) FROM step_logs WHERE user_id = $1 UNION ALL SELECT MIN(date) FROM sleep_logs WHERE user_id = $1
@@ -137,7 +138,7 @@ async function loadContext(userId, D) {
               UNION ALL SELECT MIN(date) FROM workouts WHERE user_id = $1 UNION ALL SELECT MIN(date) FROM weight_logs WHERE user_id = $1) x`, [userId]),
   ]);
   // Expenses by category for the month(s) we look at (for budget adherence)
-  const catRows = await db.all(`SELECT date, category, amount FROM expenses WHERE user_id = $1 AND date >= $2 AND date <= $3`, [userId, monthStart, D]);
+  const catRows = await db.all(`SELECT date, category, amount, amount_paise FROM expenses WHERE user_id = $1 AND date >= $2 AND date <= $3`, [userId, monthStart, D]);
   const targets = summary.profileIsComplete(profile) ? calc.dailyTargets(profile) : null;
   return { userId, D, days, profile: profile || {}, user, bills, budgets, catRows, targets, firstLog: firstLog && firstLog.d };
 }
@@ -147,21 +148,23 @@ async function loadContext(userId, D) {
 // ------------------------------------------------------------
 function monthMoney(ctx, D) {
   const month = D.slice(0, 7);
-  const income = ctx.profile.income > 0 ? ctx.profile.income : null;
-  let spent = 0; let n = 0;
+  const incomeP = money.paiseOf(ctx.profile, 'income');
+  const income = incomeP > 0 ? money.rupees(incomeP) : null;
+  let spentP = 0; let n = 0;
   for (const d of Object.values(ctx.days)) {
-    if (d.date.slice(0, 7) === month && d.date <= D && d.expense_n) { spent += d.spend; n += d.expense_n; }
+    if (d.date.slice(0, 7) === month && d.date <= D && d.expense_n) { spentP += d.spend_paise || 0; n += d.expense_n; }
   }
   const isCurrentMonth = month === ctx.D.slice(0, 7);
   // Paid status is only known for the current month's payments
   const bills = ctx.bills.map((b) => ({ ...b, paid: isCurrentMonth ? Boolean(b.paid_month) : false }));
   const dayNum = Number(D.slice(8, 10));
-  const unpaidThisMonth = bills.filter((b) => !b.paid).reduce((s, b) => s + b.amount, 0);
+  const unpaidP = money.sumPaise(bills.filter((b) => !b.paid));
+  const unpaidThisMonth = money.rupees(unpaidP);
   const dueSoFar = bills.filter((b) => b.due_day <= dayNum);
   const byCat = {};
-  for (const r of ctx.catRows) if (r.date.slice(0, 7) === month && r.date <= D) byCat[r.category] = (byCat[r.category] || 0) + r.amount;
+  for (const r of ctx.catRows) if (r.date.slice(0, 7) === month && r.date <= D) byCat[r.category] = money.rupees(money.toPaise(byCat[r.category]) + money.paiseOf(r));
   const budgets = ctx.budgets.filter((b) => b.month === month);
-  return { month, income, spent: calc.round(spent), expense_n: n, bills, unpaidThisMonth, dueSoFar, byCat, budgets, dayNum };
+  return { month, income, incomeP, spent: money.rupees(spentP), spentP, expense_n: n, bills, unpaidThisMonth, unpaidP, dueSoFar, byCat, budgets, dayNum };
 }
 
 // ------------------------------------------------------------
@@ -408,7 +411,7 @@ function budgetBlock(ctx) {
     return { income: null, spent, upcoming_bills: upcoming, remaining: null, savings_rate: null,
       message: 'Add your monthly income to your profile and I can show how much you have left this month.' };
   }
-  const remaining = calc.round(m.income - (spent || 0) - (upcoming || 0));
+  const remaining = money.rupees(m.incomeP - (spent != null ? m.spentP : 0) - (m.bills.length ? m.unpaidP : 0));
   const savingsRate = spent != null ? calc.round((remaining / m.income) * 100) : null;
   let message;
   if (remaining < 0) message = `You're ${inr(-remaining)} over this month once bills are paid. Let's pause non-essential spending for a few days. You can get back on track.`;
@@ -529,8 +532,8 @@ async function trends(userId, days, { date = today() } = {}) {
   const sleepAvg = avg(vals(cur, (d) => d.sleep_h)); const sleepPrev = avg(vals(prev, (d) => d.sleep_h));
   const moodAvg = avg(vals(cur, (d) => d.mood));
   const spendDays = cur.filter((d) => d.expense_n); const spendPrevDays = prev.filter((d) => d.expense_n);
-  const spendTotal = spendDays.length ? spendDays.reduce((s, d) => s + d.spend, 0) : null;
-  const spendPrev = spendPrevDays.length ? spendPrevDays.reduce((s, d) => s + d.spend, 0) : null;
+  const spendTotal = spendDays.length ? money.rupees(spendDays.reduce((s, d) => s + d.spend_paise, 0)) : null;
+  const spendPrev = spendPrevDays.length ? money.rupees(spendPrevDays.reduce((s, d) => s + d.spend_paise, 0)) : null;
   const waterAvg = avg(vals(cur, (d) => d.water)); const kcalAvg = avg(vals(cur.filter((d) => d.food_n), (d) => d.kcal));
   const weights = vals(cur, (d) => d.weight);
   const summaryOut = {

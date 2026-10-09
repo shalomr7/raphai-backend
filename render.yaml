@@ -24,6 +24,11 @@ services:
       # CORS_ORIGIN: leave unset (the Android app does not need CORS; "*" is ignored in production)
       - key: NODE_VERSION
         value: "22"
+      # Password-reset email via Resend. Unset = /api/auth/forgot returns 503 email_unavailable.
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM   # e.g. RaphAi <no-reply@yourdomain.com> (verified in Resend)
+        sync: false
       # Gemini (server only). Unset = rule-based coach.
       - key: GEMINI_API_KEY
         sync: false

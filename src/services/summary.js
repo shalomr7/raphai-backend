@@ -6,6 +6,7 @@
 // ------------------------------------------------------------
 
 const db = require('../db');
+const money = require('../utils/money');
 const calc = require('../utils/calc');
 const { today, thisMonth, dayOfMonth } = require('../utils/dates');
 
@@ -106,13 +107,13 @@ function healthScore(day) {
 // Everything about one month of money
 async function wealthMonth(userId, month = thisMonth()) {
   const [profile, byCategory, budgets, bills] = await Promise.all([
-    db.get('SELECT income FROM profiles WHERE user_id = $1', [userId]),
+    db.get('SELECT income, income_paise FROM profiles WHERE user_id = $1', [userId]),
     db.all(`
-      SELECT category, SUM(amount) AS total, COUNT(*)::int AS count
+      SELECT category, SUM(amount_paise)::bigint AS total_paise, COUNT(*)::int AS count
       FROM expenses WHERE user_id = $1 AND substr(date, 1, 7) = $2
-      GROUP BY category ORDER BY total DESC
+      GROUP BY category ORDER BY total_paise DESC
     `, [userId, month]),
-    db.all('SELECT category, amount FROM budgets WHERE user_id = $1 AND month = $2', [userId, month]),
+    db.all('SELECT category, amount, amount_paise FROM budgets WHERE user_id = $1 AND month = $2', [userId, month]),
     // Bills: which are due by today (for this month) and are they paid?
     db.all(`
       SELECT b.*, (p.bill_id IS NOT NULL)::int AS paid
@@ -120,14 +121,16 @@ async function wealthMonth(userId, month = thisMonth()) {
       WHERE b.user_id = $2
     `, [month, userId]),
   ]);
-  const income = (profile && profile.income) || 0;
+  const incomeP = profile ? money.paiseOf(profile, 'income') : 0;
 
-  let spent = 0; let invested = 0; let needs = 0; let wants = 0;
+  // All sums in integer paise; rupees only at the end
+  let spentP = 0; let investedP = 0; let needsP = 0; let wantsP = 0;
   for (const c of byCategory) {
-    if (SAVINGS.includes(c.category)) invested += c.total;
+    const t = Number(c.total_paise);
+    if (SAVINGS.includes(c.category)) investedP += t;
     else {
-      spent += c.total;
-      if (NEEDS.includes(c.category)) needs += c.total; else wants += c.total;
+      spentP += t;
+      if (NEEDS.includes(c.category)) needsP += t; else wantsP += t;
     }
   }
 
@@ -136,12 +139,15 @@ async function wealthMonth(userId, month = thisMonth()) {
 
   return {
     month,
-    income,
-    spent: calc.round(spent),
-    invested: calc.round(invested),
-    needs: calc.round(needs),
-    wants: calc.round(wants),
-    by_category: byCategory.map((c) => ({ ...c, total: calc.round(c.total) })),
+    income: money.rupees(incomeP),
+    spent: money.rupees(spentP),
+    invested: money.rupees(investedP),
+    needs: money.rupees(needsP),
+    wants: money.rupees(wantsP),
+    income_paise: incomeP,
+    spent_paise: spentP,
+    invested_paise: investedP,
+    by_category: byCategory.map((c) => ({ category: c.category, total: money.rupees(c.total_paise), total_paise: Number(c.total_paise), count: c.count })),
     budgets,
     bills,
     bills_due_so_far: dueSoFar.length,

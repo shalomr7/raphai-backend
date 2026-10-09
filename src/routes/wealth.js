@@ -15,6 +15,7 @@ const db = require('../db');
 const calc = require('../utils/calc');
 const { validate, idParam, HttpError, asyncHandler } = require('../utils/http');
 const { today, thisMonth, daysInMonth } = require('../utils/dates');
+const money = require('../utils/money');
 const summary = require('../services/summary');
 const { hasPlan, requirePlan, upgradeError } = require('../middleware/requirePlan');
 const { FREE_LIMITS, FEATURE_TIERS } = require('../utils/plans');
@@ -73,25 +74,27 @@ router.get('/expenses', asyncHandler(async (req, res) => {
   if (q.to) { sql += ' AND date <= @to'; params.to = q.to; }
   if (q.category) { sql += ' AND category = @category'; params.category = q.category; }
   const rows = await db.all(sql + ' ORDER BY date DESC, id DESC', params);
-  res.json({ expenses: rows, total: calc.round(rows.reduce((s, e) => s + e.amount, 0)) });
+  const totalP = money.sumPaise(rows);
+  res.json({ expenses: rows, total: money.rupees(totalP), total_paise: totalP });
 }));
 
 // Monthly summary by category (put BEFORE "/expenses/:id" style routes)
 router.get('/expenses/summary', asyncHandler(async (req, res) => {
   const { month } = validate(req.query, { month: { type: 'month' } });
   const m = await summary.wealthMonth(req.user.id, month || thisMonth());
-  const byMode = await db.all(`SELECT mode, SUM(amount) AS total FROM expenses
+  const byMode = await db.all(`SELECT mode, SUM(amount_paise)::bigint AS total_paise FROM expenses
     WHERE user_id = $1 AND substr(date,1,7) = $2 GROUP BY mode`, [req.user.id, m.month]);
   res.json({
     month: m.month,
     income: m.income,
     total_spent: m.spent,
     invested: m.invested,
-    left_over: calc.round(m.income - m.spent - m.invested),
+    left_over: money.rupees(m.income_paise - m.spent_paise - m.invested_paise),
+    left_over_paise: m.income_paise - m.spent_paise - m.invested_paise,
     needs: m.needs,
     wants: m.wants,
     by_category: m.by_category,
-    by_mode: byMode,
+    by_mode: byMode.map((r) => ({ mode: r.mode, total: money.rupees(r.total_paise), total_paise: r.total_paise })),
   });
 }));
 
@@ -124,10 +127,11 @@ router.get('/budgets/suggestion', asyncHandler(async (req, res) => {
 router.get('/budgets', asyncHandler(async (req, res) => {
   const { month } = validate(req.query, { month: { type: 'month' } });
   const m = await summary.wealthMonth(req.user.id, month || thisMonth());
-  const spentIn = Object.fromEntries(m.by_category.map((c) => [c.category, c.total]));
+  const spentIn = Object.fromEntries(m.by_category.map((c) => [c.category, c.total_paise]));
   const rows = (await db.all('SELECT * FROM budgets WHERE user_id = $1 AND month = $2 ORDER BY category', [req.user.id, m.month])).map((b) => {
-    const spent = spentIn[b.category] || 0;
-    return { ...b, spent, left: calc.round(b.amount - spent), over_budget: spent > b.amount };
+    const spentP = spentIn[b.category] || 0;
+    const amountP = money.paiseOf(b);
+    return { ...b, spent: money.rupees(spentP), spent_paise: spentP, left: money.rupees(amountP - spentP), left_paise: amountP - spentP, over_budget: spentP > amountP };
   });
   res.json({ month: m.month, budgets: rows, suggestion_503020: m.income ? calc.budget503020(m.income) : null });
 }));
@@ -170,14 +174,16 @@ const GOAL_RULES = {
 
 // Add helpful numbers: % done, and how much to save per month to hit the deadline
 function goalView(g) {
-  const left = Math.max(0, g.target - g.saved);
+  const targetP = money.paiseOf(g, 'target');
+  const savedP = money.paiseOf(g, 'saved');
+  const leftP = Math.max(0, targetP - savedP);
   let monthsLeft = null; let perMonth = null;
   if (g.deadline) {
     const days = (new Date(g.deadline) - new Date(today())) / 86400000;
     monthsLeft = Math.max(1, Math.ceil(days / 30.44));
-    perMonth = calc.round(left / monthsLeft);
+    perMonth = calc.round(leftP / monthsLeft / 100); // whole rupees per month
   }
-  return { ...g, left: calc.round(left), progress_pct: calc.round((g.saved / g.target) * 100, 1), months_left: monthsLeft, save_per_month: perMonth };
+  return { ...g, left: money.rupees(leftP), left_paise: leftP, progress_pct: targetP ? calc.round((savedP / targetP) * 100, 1) : 0, months_left: monthsLeft, save_per_month: perMonth };
 }
 
 router.post('/goals', asyncHandler(async (req, res) => {
@@ -271,7 +277,8 @@ router.get('/bills', asyncHandler(async (req, res) => {
   res.json({
     month: m,
     bills,
-    total_due: calc.round(unpaid.reduce((s, b) => s + b.amount, 0)),
+    total_due: money.rupees(money.sumPaise(unpaid)),
+    total_due_paise: money.sumPaise(unpaid),
     overdue_count: bills.filter((b) => b.overdue).length,
   });
 }));

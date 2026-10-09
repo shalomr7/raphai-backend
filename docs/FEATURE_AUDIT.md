@@ -5,7 +5,7 @@ Evidence: `test/smoke.js` (304 checks), `test/security.js` (73 checks), code rea
 | Area | Feature | Status | Notes |
 |---|---|---|---|
 | Auth | Email + password, JWT (HS256, 7d) | W | bcrypt; rate-limited; logout-all; deleted users' tokens rejected |
-| Auth | Password reset | X | Only via support email |
+| Auth | Password reset | P | Email code flow built + tested with fake email; live once RESEND_API_KEY/EMAIL_FROM are set |
 | Auth | Google / Apple / phone OTP | X | Google planned Phase 4 |
 | Profile | Profile, targets, BMI | W | Body fat % gated to Plus |
 | Health | Food library, logs, favourites, repeat meal | W | Seeded Indian foods "verified"; custom foods shared |
@@ -15,7 +15,7 @@ Evidence: `test/smoke.js` (304 checks), `test/security.js` (73 checks), code rea
 | Fitness | Health Connect sync (mobile) | P | Code present; not verified on a real device |
 | Fitness | Pedometer fallback, HIIT plans | P | Not device-tested |
 | Fitness | Wearables | P | Only indirectly via Health Connect |
-| Wealth | Expenses, budgets, goals, bills, SIP/EMI | W | Money float rupees + generated paise columns |
+| Wealth | Expenses, budgets, goals, bills, SIP/EMI | W | Totals computed from integer paise columns (rupee fields kept) |
 | Wealth | Bank-notification capture | M | Placeholder screen |
 | Wealth | Bill split | P | Phone-only (AsyncStorage) |
 | Home | Dashboard, streaks | W | |

@@ -22,6 +22,8 @@ const aiCoach = require('../src/services/aiCoach');
 const { createGeminiProvider } = require('../src/ai');
 const tools = require('../src/ai/tools');
 const { today } = require('../src/utils/dates');
+const emailSvc = require('../src/services/email');
+const money = require('../src/utils/money');
 
 let base; let passed = 0;
 function check(name, ok, extra) {
@@ -282,6 +284,69 @@ async function run() {
   aiCoach.setAiProvider(null);
 }
 
+async function resetTests() {
+  resetAll();
+  const outbox = [];
+  emailSvc.setEmailProvider({ send: async (m) => { outbox.push(m); } });
+  const U = await register('Reset', 'reset@example.com');
+  let r = await api('POST', '/api/auth/forgot', { email: 'reset@example.com' });
+  const r2 = await api('POST', '/api/auth/forgot', { email: 'nobody@example.com' });
+  check('forgot: same answer for known and unknown email', r.status === 200 && r2.status === 200 && JSON.stringify(r.body) === JSON.stringify(r2.body));
+  check('forgot: one email with a 6-digit code, only to the real account', outbox.length === 1 && outbox[0].to === 'reset@example.com' && /\b\d{6}\b/.test(outbox[0].text));
+  const code = outbox[0].text.match(/\b(\d{6})\b/)[1];
+  const row = await db.get('SELECT code_hash FROM password_resets WHERE user_id = $1', [U.id]);
+  check('code stored hashed, not plain', row && row.code_hash !== code && row.code_hash.length === 64);
+  const wrong = code === '000000' ? '111111' : '000000';
+  for (let i = 0; i < 4; i++) {
+    r = await api('POST', '/api/auth/reset', { email: 'reset@example.com', code: wrong, new_password: 'newsecret123' });
+  }
+  check('wrong code -> 400', r.status === 400);
+  await new Promise((res) => setTimeout(res, 1100)); // tokens are second-precision
+  r = await api('POST', '/api/auth/reset', { email: 'reset@example.com', code, new_password: 'newsecret123' });
+  check('right code after 4 wrong tries -> works', r.status === 200 && r.body.reset === true, r.body);
+  r = await api('GET', '/api/auth/me', undefined, U.token);
+  check('old token revoked after reset', r.status === 401);
+  r = await api('POST', '/api/auth/login', { email: 'reset@example.com', password: 'newsecret123' });
+  check('login with new password', r.status === 200);
+  r = await api('POST', '/api/auth/reset', { email: 'reset@example.com', code, new_password: 'another123' });
+  check('code works only once', r.status === 400);
+  const log = await db.get("SELECT COUNT(*)::int AS n FROM security_logs WHERE user_id = $1 AND event = 'password_reset'", [U.id]);
+  check('security log row for reset', log.n === 1);
+  // 5 wrong tries burn the code
+  outbox.length = 0;
+  await api('POST', '/api/auth/forgot', { email: 'reset@example.com' });
+  const code2 = outbox[0].text.match(/\b(\d{6})\b/)[1];
+  const wrong2 = code2 === '000000' ? '111111' : '000000';
+  for (let i = 0; i < 5; i++) await api('POST', '/api/auth/reset', { email: 'reset@example.com', code: wrong2, new_password: 'newsecret456' });
+  r = await api('POST', '/api/auth/reset', { email: 'reset@example.com', code: code2, new_password: 'newsecret456' });
+  check('after 5 wrong tries the code is dead', r.status === 400);
+  r = await api('POST', '/api/auth/reset', { email: 'reset@example.com', code: '12ab56', new_password: 'newsecret456' });
+  check('non-numeric code -> 400', r.status === 400);
+  // email not configured
+  emailSvc.setEmailProvider(null);
+  const env = process.env.NODE_ENV; process.env.NODE_ENV = 'production';
+  r = await api('POST', '/api/auth/forgot', { email: 'reset@example.com' });
+  process.env.NODE_ENV = env;
+  check('no email provider in production -> 503 email_unavailable', r.status === 503 && r.body.code === 'email_unavailable', r.body);
+  // rate limit on /forgot per IP
+  resetAll();
+  for (let i = 0; i < 10; i++) await api('POST', '/api/auth/forgot', { email: `x${i}@example.com` });
+  r = await api('POST', '/api/auth/forgot', { email: 'x@example.com' });
+  check('forgot rate-limited per IP -> 429', r.status === 429);
+  resetAll();
+
+  // Money: sums in integer paise
+  check('paise helpers', money.toPaise(0.1) + money.toPaise(0.2) === 30 && money.rupees(30) === 0.3 && money.inr(12345678) === '₹1,23,456.78');
+  const M = await register('Money', 'money@example.com');
+  for (const amt of [0.1, 0.2, 0.7]) await api('POST', '/api/wealth/expenses', { amount: amt + 10, category: 'Food', mode: 'UPI' }, M.token);
+  r = await api('GET', '/api/wealth/expenses', undefined, M.token);
+  check('expense total exact in paise', r.body.total === 31 && r.body.total_paise === 3100, r.body.total);
+  await api('POST', '/api/wealth/bills', { name: 'A', amount: 100.1, due_day: 28 }, M.token);
+  await api('POST', '/api/wealth/bills', { name: 'B', amount: 200.2, due_day: 28 }, M.token);
+  r = await api('GET', '/api/wealth/bills', undefined, M.token);
+  check('bills total_due exact', r.body.total_due === 300.3 && r.body.total_due_paise === 30030, r.body);
+}
+
 async function main() {
   let ok = true; let server;
   try {
@@ -289,6 +354,7 @@ async function main() {
     server = await new Promise((res) => { const s = createApp().listen(0, () => res(s)); });
     base = `http://127.0.0.1:${server.address().port}`;
     await run();
+    await resetTests();
   } catch (e) { ok = false; if (!e.fromCheck) console.error(e); }
   if (server) server.close();
   try { await db.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`); } catch (e) { console.error('drop schema:', e.message); }
