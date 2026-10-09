@@ -1,7 +1,7 @@
 {
   "name": "raphai-backend",
   "version": "1.0.0",
-  "description": "RaphAi - health + wealth tracking backend (India, INR). Node.js + Express + PostgreSQL.",
+  "description": "HeartPurse - health + wealth tracking backend (India, INR). Node.js + Express + PostgreSQL.",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",

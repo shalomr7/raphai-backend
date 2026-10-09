@@ -1,12 +1,12 @@
 # HeartPurse Terms & Conditions
 
-**Version:** 2.1
-**Effective date:** 8 October 2026
-**Last updated:** 8 October 2026
+**Version:** 3.0
+**Effective date:** 10 October 2026
+**Last updated:** 10 October 2026
 
-These Terms & Conditions ("**Terms**") are a legal agreement between you and **Shalem Raj Rooppa, an individual developer operating under the name HeartPurse (sole proprietorship)**, [POSTAL ADDRESS], Andhra Pradesh, India ("**HeartPurse**", "**we**", "**us**", "**our**"). They cover the HeartPurse Android app (package `com.raphai.app`) and related services (together, the "**Service**").
+These Terms & Conditions ("**Terms**") are a legal agreement between you and **Shalem Raj Rooppa, an individual developer operating under the name HeartPurse (sole proprietorship)**, [POSTAL ADDRESS], Andhra Pradesh, India ("**HeartPurse**", "**we**", "**us**", "**our**"). They cover the HeartPurse Android app and related services (together, the "**Service**").
 
-**By creating an account or using HeartPurse, you agree to these Terms and to our Privacy Policy** (<https://raphai-backend.onrender.com/privacy>). If you do not agree, please do not use HeartPurse. These Terms are an electronic record under the Information Technology Act, 2000 and do not need a physical signature.
+**By creating an account or using HeartPurse, you agree to these Terms and to our [Privacy Policy](/privacy)**. If you do not agree, please do not use HeartPurse. These Terms are an electronic record under the Information Technology Act, 2000 and do not need a physical signature.
 
 > **The most important points**
 >
@@ -31,7 +31,7 @@ These Terms & Conditions ("**Terms**") are a legal agreement between you and **S
 - Keep your password and phone safe. You are responsible for activity under your account.
 - Tell us at once at [SUPPORT EMAIL] if you think someone else used your account.
 - One person, one account. Do not share, sell or transfer your account.
-- You can delete your account anytime: **You → Privacy Centre → Delete account**, or at <https://raphai-backend.onrender.com/delete-account>. Our Privacy Policy explains what happens to your data.
+- You can delete your account anytime: **You → Privacy Centre → Delete account**, or on our [account deletion page](/delete-account). Our Privacy Policy explains what happens to your data.
 
 ## 3. Plans, prices and payments
 
@@ -116,8 +116,8 @@ Each offer shows its price, length and what you pay afterwards in Google Play be
 
 ## 6. Coach, insights and AI
 
-- The Coach and insights give general tips about fitness, food, habits and money. Today they use **rule-based logic on our server**. Food text you type is also matched by rules, not by an outside AI.
-- **Planned:** smarter Coach replies using **Google Gemini**, only if you **switch it on** after reading a notice. You can switch it off anytime.
+- The Coach and insights give general tips about fitness, food, habits and money. Today they are produced by HeartPurse itself, using built-in rules. Food you describe in words is also matched by built-in rules.
+- **Planned:** smarter Coach replies from a third-party AI provider, only if you **switch it on** after reading a notice. You can switch it off anytime.
 - **Replies and insights can be wrong, incomplete or out of date.** Check important things yourself.
 - The Coach does **not** give medical diagnosis or treatment, or personalised financial, investment or tax advice.
 - Use the Coach respectfully. Do not use it to create illegal, hateful, sexual, violent or harassing content, or to get around its safety limits.
@@ -153,14 +153,14 @@ You agree **not** to:
 
 ## 10. Ads (Free plan — planned)
 
-- The Free plan may show ads from Google AdMob in future. Plus, Pro and Elite are ad-free.
+- The Free plan may show ads from an advertising partner in future. Plus, Pro and Elite are ad-free.
 - Ads will **not** appear on health-logging or money-entry screens and will **never** use Health Connect, health or money data.
 - Personalised ads only with your consent. Change your choice in **You → Privacy Centre → Ad choices**.
 - We are not responsible for advertisers' products or websites.
 
 ## 11. Third-party services
 
-HeartPurse works with services we do not control, such as Google Play, Android Health Connect, wearable apps (for example Fitbit, Samsung Health, Garmin) and Google services. Their own terms and privacy policies apply. We are not responsible for their availability, accuracy or actions.
+HeartPurse works with services we do not control, such as Google Play, Android Health Connect, wearable and fitness apps that share data with Health Connect, and the cloud hosting, email and AI providers that help us run HeartPurse. Their own terms and privacy policies apply. We are not responsible for their availability, accuracy or actions.
 
 ## 12. Availability and changes to the Service
 

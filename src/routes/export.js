@@ -70,7 +70,7 @@ router.get('/', asyncHandler(async (req, res) => {
     FROM google_play_purchases WHERE user_id = $1 ORDER BY created_at`, [userId]);
 
   await logSecurity('export', { req, userId });
-  res.setHeader('Content-Disposition', `attachment; filename="raphai-export-${userId}.json"`);
+  res.setHeader('Content-Disposition', `attachment; filename="heartpurse-export-${userId}.json"`);
   res.json(data);
 }));
 

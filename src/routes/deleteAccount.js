@@ -61,7 +61,7 @@ Cancel it first at <a href="${PLAY_SUBSCRIPTIONS_URL}">${PLAY_SUBSCRIPTIONS_URL}
 (Google Play &rarr; Profile &rarr; Payments &amp; subscriptions &rarr; Subscriptions).</p>
 
 <h2>What gets deleted</h2>
-<p>Straight away, from our live database:</p>
+<p>Straight away, from our active systems:</p>
 <ul>
   <li>Your account: name, email and password hash.</li>
   <li>Your profile: sex, age, height, weight, measurements, goals and monthly income.</li>
@@ -73,11 +73,11 @@ Cancel it first at <a href="${PLAY_SUBSCRIPTIONS_URL}">${PLAY_SUBSCRIPTIONS_URL}
 
 <h2>What we keep, and for how long</h2>
 <ul>
-  <li><strong>Security logs</strong> (IP address, time and type of event, such as sign-ins and this deletion): kept in our Mumbai (India) database for <strong>1 year</strong>, then deleted.</li>
+  <li><strong>Security logs</strong> (IP address, time and type of event, such as sign-ins and this deletion): kept for <strong>1 year</strong>, then deleted.</li>
   <li><strong>Consent records</strong> (what you agreed to, which version, when): kept for <strong>1 year</strong> after deletion to prove consent, then deleted.</li>
-  <li><strong>Google Play purchase records</strong> (purchase token, plan, status, expiry, order ID): kept for <strong>8 years</strong> because tax law requires it. They are no longer linked to your account.</li>
+  <li><strong>Google Play purchase records</strong> (plan, status and dates): kept for <strong>8 years</strong> because tax law requires it. They are no longer linked to your account.</li>
   <li><strong>Custom foods</strong> you added to the shared food library stay in the library, without your name.</li>
-  <li><strong>Backups:</strong> backups are kept for up to 7 days where our database plan provides them, then roll off.</li>
+  <li><strong>Backups:</strong> any copies in short-term backups are removed within 7 days.</li>
 </ul>
 <p>Data kept only on your phone (such as bill splits) is removed when you uninstall the app.
 See our <a href="/privacy">Privacy Policy</a> for full details.</p>

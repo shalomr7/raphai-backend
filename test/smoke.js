@@ -104,6 +104,7 @@ async function run() {
     const html = await res.text();
     check(`GET ${url} -> 200 text/html (no login)`, res.status === 200 && /^text\/html/.test(res.headers.get('content-type') || ''), { status: res.status, type: res.headers.get('content-type') });
     check(`GET ${url} shows its heading`, html.includes(`<h1>${heading}</h1>`), html.slice(0, 300));
+    check(`GET ${url} has no old brand or technical internals`, !/raph|onrender|supabase|postgres|render\.com|gemini|admob/i.test(html), (html.match(/.{0,40}(raph|onrender|supabase|postgres|render\.com|gemini|admob).{0,40}/i) || [])[0]);
   }
 
   console.log('\nAuth');
@@ -996,8 +997,8 @@ async function deleteAccountWebTests() {
     && /<form method="post" action="\/delete-account"/.test(html) && html.includes('type="password"'), html.slice(0, 200));
   check('page says deleting does not cancel Google Play + links subscriptions', html.includes('does not cancel a Google Play subscription')
     && html.includes('href="https://play.google.com/store/account/subscriptions"'));
-  check('page matches policy: Mumbai logs 1 year, 7-day backups', html.includes('Mumbai (India) database for <strong>1 year</strong>')
-    && html.includes('backups are kept for up to 7 days where our database plan provides them'));
+  check('page matches policy: security logs 1 year, 7-day backups', html.includes('Security logs</strong> (IP address, time and type of event, such as sign-ins and this deletion): kept for <strong>1 year</strong>')
+    && html.includes('short-term backups are removed within 7 days'));
   check('page cannot be framed, not cached', res.headers.get('x-frame-options') === 'DENY' && res.headers.get('cache-control') === 'no-store');
 
   token = (await api('POST', '/api/auth/register', { name: 'Webby', email: 'webby@example.com', password: 'secret123', accepted_terms: true })).body.token;

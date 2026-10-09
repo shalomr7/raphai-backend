@@ -1,4 +1,4 @@
-# render.yaml - tells Render how to run RaphAi (a "Blueprint").
+# render.yaml - tells Render how to run the HeartPurse backend (a "Blueprint").
 # In Render: New + -> Blueprint -> pick your GitHub repo. Render reads this file.
 services:
   - type: web
@@ -27,7 +27,7 @@ services:
       # Password-reset email via Resend. Unset = /api/auth/forgot returns 503 email_unavailable.
       - key: RESEND_API_KEY
         sync: false
-      - key: EMAIL_FROM   # e.g. RaphAi <no-reply@yourdomain.com> (verified in Resend)
+      - key: EMAIL_FROM   # e.g. HeartPurse <no-reply@yourdomain.com> (verified in Resend)
         sync: false
       # Gemini (server only). Unset = rule-based coach.
       - key: GEMINI_API_KEY
