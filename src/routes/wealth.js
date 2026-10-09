@@ -46,7 +46,7 @@ router.get('/categories', (req, res) => {
 
 // ================= EXPENSES =================
 const EXPENSE_RULES = {
-  amount: { type: 'number', required: true, min: 1, max: 10000000 },
+  amount: { type: 'money', required: true, min: 1, max: 10000000 },
   category: { type: 'string', required: true, oneOf: summary.EXPENSE_CATEGORIES },
   mode: { type: 'string', required: true, oneOf: MODES },
   note: { type: 'string', maxLength: 200 },
@@ -136,7 +136,7 @@ router.get('/budgets', asyncHandler(async (req, res) => {
 router.put('/budgets', asyncHandler(async (req, res) => {
   const b = validate(req.body, {
     category: { type: 'string', required: true, oneOf: summary.EXPENSE_CATEGORIES },
-    amount: { type: 'number', required: true, min: 0 },
+    amount: { type: 'money', required: true, min: 0, max: 100000000 },
     month: { type: 'month' },
   });
   const month = b.month || thisMonth();
@@ -163,8 +163,8 @@ router.delete('/budgets/:id', asyncHandler(async (req, res) => {
 // ================= SAVINGS GOALS =================
 const GOAL_RULES = {
   name: { type: 'string', required: true, maxLength: 80 },
-  target: { type: 'number', required: true, min: 1 },
-  saved: { type: 'number', min: 0 },
+  target: { type: 'money', required: true, min: 1, max: 1000000000 },
+  saved: { type: 'money', min: 0, max: 1000000000 },
   deadline: { type: 'date' },
 };
 
@@ -208,7 +208,7 @@ router.put('/goals/:id', asyncHandler(async (req, res) => {
 // Add money to a goal: { "amount": 2000 }
 router.post('/goals/:id/add', asyncHandler(async (req, res) => {
   const id = idParam(req);
-  const { amount } = validate(req.body, { amount: { type: 'number', required: true, min: 1 } });
+  const { amount } = validate(req.body, { amount: { type: 'money', required: true, min: 1, max: 1000000000 } });
   await getOwned('savings_goals', id, req.user.id); // 404 if it is not yours
   // "saved = saved + amount" in one statement, so two quick taps both count
   await db.run('UPDATE savings_goals SET saved = saved + $1 WHERE id = $2 AND user_id = $3', [amount, id, req.user.id]);
@@ -224,7 +224,7 @@ router.delete('/goals/:id', asyncHandler(async (req, res) => {
 // ================= BILLS =================
 const BILL_RULES = {
   name: { type: 'string', required: true, maxLength: 80 },
-  amount: { type: 'number', required: true, min: 1 },
+  amount: { type: 'money', required: true, min: 1, max: 100000000 },
   due_day: { type: 'integer', required: true, min: 1, max: 31 },
   recurring: { type: 'boolean' },
 };

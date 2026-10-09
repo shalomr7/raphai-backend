@@ -13,12 +13,25 @@ require('dotenv').config();
 const db = require('./db');
 const { createApp } = require('./app');
 const { startDailyPurge } = require('./services/securityLog');
+const { assertAuthConfig } = require('./middleware/auth');
+const ai = require('./ai');
 
 const PORT = Number(process.env.PORT) || 4000;
 
 async function start() {
+  // Refuse to start with an unsafe login secret (production)
+  assertAuthConfig();
+
   await db.init();
-  console.log('Database ready (tables checked, foods seeded)');
+  const applied = db.appliedMigrations();
+  console.log(`Database ready (${applied.length ? `applied migrations: ${applied.join(', ')}` : 'no new migrations'}; foods seeded)`);
+
+  if (process.env.NODE_ENV === 'production' && String(process.env.CORS_ORIGIN || '').trim() === '*') {
+    console.warn('CORS_ORIGIN="*" is ignored in production: no browser origin may call the API. List exact origins to allow some.');
+  }
+
+  // Gemini when GEMINI_API_KEY is set; otherwise the rule-based coach only
+  console.log(ai.configureFromEnv().message);
 
   // Delete security logs older than 1 year (and consent records 1 year after
   // an account was deleted): now, then once a day.

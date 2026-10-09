@@ -5,6 +5,7 @@
 //                             Terms and Privacy Policy); we store that consent.
 // POST /api/auth/login     -> check password, returns a token
 // GET  /api/auth/me        -> who am I? (needs token)
+// POST /api/auth/logout-all -> every token issued so far stops working
 // DELETE /api/auth/me      -> delete my account and ALL my data (needs token
 //                             + { "password": "..." } to confirm)
 // Passwords are never stored. We store a bcrypt "hash" (a one-way scramble).
@@ -18,12 +19,24 @@ const { validate, HttpError, asyncHandler } = require('../utils/http');
 const { logSecurity } = require('../services/securityLog');
 const { deleteAccount } = require('../services/account');
 const { TERMS_VERSION } = require('./consents');
+const { rateLimit, hit, peek, clear, tooMany, byIp } = require('../middleware/rateLimit');
 
 const router = express.Router();
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-router.post('/register', asyncHandler(async (req, res) => {
+// ---- Rate limits (in memory; see middleware/rateLimit.js) ----
+// Sign-ups: 20 per IP per hour.
+const registerLimit = rateLimit({ name: 'register', windowMs: 60 * 60 * 1000, max: 20, key: byIp,
+  message: 'Too many sign-ups from this network. Please try again later.' });
+// Logins: 30 attempts per IP per 15 minutes ...
+const loginIpLimit = rateLimit({ name: 'login_ip', windowMs: 15 * 60 * 1000, max: 30, key: byIp,
+  message: 'Too many login attempts. Please wait 15 minutes and try again.' });
+// ... and 8 WRONG passwords per email per 15 minutes (stops password guessing
+// on one account from many IPs). A successful login clears the count.
+const LOGIN_FAIL = { windowMs: 15 * 60 * 1000, max: 8 };
+
+router.post('/register', registerLimit, asyncHandler(async (req, res) => {
   const body = validate(req.body, {
     name: { type: 'string', required: true, maxLength: 80 },
     email: { type: 'string', required: true, pattern: EMAIL, maxLength: 120 },
@@ -40,7 +53,8 @@ router.post('/register', asyncHandler(async (req, res) => {
   if (exists) throw new HttpError(409, 'An account with this email already exists');
 
   // 10 "rounds" = good balance between safety and speed
-  const hash = bcrypt.hashSync(body.password, 10);
+  // (async so a sign-up never blocks other requests)
+  const hash = await bcrypt.hash(body.password, 10);
 
   // Create the user + empty profile + free plan + default reminders, all at once
   let id;
@@ -64,18 +78,28 @@ router.post('/register', asyncHandler(async (req, res) => {
   res.status(201).json({ token: signToken(user), user });
 }));
 
-router.post('/login', asyncHandler(async (req, res) => {
+// Always compare against SOME hash, so a wrong email takes as long as a wrong password
+const DUMMY_HASH = bcrypt.hashSync('not-a-real-password-raphai', 10);
+
+router.post('/login', loginIpLimit, asyncHandler(async (req, res) => {
   const body = validate(req.body, {
-    email: { type: 'string', required: true },
-    password: { type: 'string', required: true },
+    email: { type: 'string', required: true, maxLength: 120 },
+    password: { type: 'string', required: true, maxLength: 100 },
   });
-  const row = await db.get('SELECT * FROM users WHERE email = $1', [body.email.toLowerCase()]);
+  const email = body.email.toLowerCase();
+  const locked = peek('login_fail', email, LOGIN_FAIL);
+  if (locked.limited) throw tooMany(locked.resetMs, 'Too many wrong passwords for this account. Please wait 15 minutes and try again.');
+
+  const row = await db.get('SELECT * FROM users WHERE email = $1', [email]);
+  const ok = await bcrypt.compare(body.password, row ? row.password_hash : DUMMY_HASH);
 
   // Same message for "no such email" and "wrong password" (safer)
-  if (!row || !bcrypt.compareSync(body.password, row.password_hash)) {
+  if (!row || !ok) {
+    hit('login_fail', email, LOGIN_FAIL);
     await logSecurity('login_failed', { req, userId: row ? row.id : null });
     throw new HttpError(401, 'Wrong email or password');
   }
+  clear('login_fail', email);
   await logSecurity('login_success', { req, userId: row.id });
   touchLastActive(row.id);
   const user = { id: row.id, name: row.name, email: row.email };
@@ -93,12 +117,20 @@ router.get('/me', requireAuth, asyncHandler(async (req, res) => {
 // The actual deleting is in services/account.js (shared with the public
 // /delete-account web page).
 router.delete('/me', requireAuth, asyncHandler(async (req, res) => {
-  const { password } = validate(req.body, { password: { type: 'string', required: true } });
+  const { password } = validate(req.body, { password: { type: 'string', required: true, maxLength: 100 } });
   const row = await db.get('SELECT * FROM users WHERE id = $1', [req.user.id]);
   if (!row) throw new HttpError(404, 'User not found');
-  if (!bcrypt.compareSync(password, row.password_hash)) throw new HttpError(401, 'Wrong password');
+  if (!(await bcrypt.compare(password, row.password_hash))) throw new HttpError(401, 'Wrong password');
   await deleteAccount(row.id, { req });
   res.json({ deleted: true });
+}));
+
+// Log out on EVERY device: tokens issued before now stop working.
+// (The app should then sign in again to get a fresh token.)
+router.post('/logout-all', requireAuth, asyncHandler(async (req, res) => {
+  await db.run('UPDATE users SET tokens_valid_after = now() WHERE id = $1', [req.user.id]);
+  await logSecurity('logout_all', { req, userId: req.user.id });
+  res.json({ logged_out_everywhere: true });
 }));
 
 module.exports = router;

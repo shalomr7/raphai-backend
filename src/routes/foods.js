@@ -52,7 +52,12 @@ const FOOD_SELECT = `
 const FOOD_ORDER = ' ORDER BY is_favourite DESC, (rec.last_used IS NULL), rec.last_used DESC, f.name';
 
 // Turn 0/1 into true/false for the app
-const foodView = (f) => f && ({ ...f, verified: Boolean(f.verified), is_favourite: Boolean(f.is_favourite) });
+// created_by (another user's id) is never sent; is_mine says if YOU added it.
+const foodView = (f, userId) => {
+  if (!f) return f;
+  const { created_by: createdBy, ...rest } = f;
+  return { ...rest, verified: Boolean(f.verified), is_favourite: Boolean(f.is_favourite), is_mine: createdBy != null && Number(createdBy) === Number(userId) };
+};
 
 foodsRouter.get('/', asyncHandler(async (req, res) => {
   const { q, limit } = validate(req.query, {
@@ -62,7 +67,7 @@ foodsRouter.get('/', asyncHandler(async (req, res) => {
   // ILIKE '%dal%' finds "Dal (toor/moong)" and ignores upper/lower case.
   const rows = await db.all(`${FOOD_SELECT} WHERE f.name ILIKE @q ${FOOD_ORDER} LIMIT @limit`,
     { user_id: req.user.id, q: `%${q || ''}%`, limit: limit || 50 });
-  res.json({ foods: rows.map(foodView) });
+  res.json({ foods: rows.map((f) => foodView(f, req.user.id)) });
 }));
 
 // Foods you ate most recently (newest first)
@@ -70,13 +75,13 @@ foodsRouter.get('/recent', asyncHandler(async (req, res) => {
   const { limit } = validate(req.query, { limit: { type: 'integer', min: 1, max: 50 } });
   const rows = await db.all(`${FOOD_SELECT} WHERE rec.last_used IS NOT NULL ORDER BY rec.last_used DESC LIMIT @limit`,
     { user_id: req.user.id, limit: limit || 10 });
-  res.json({ foods: rows.map(foodView) });
+  res.json({ foods: rows.map((f) => foodView(f, req.user.id)) });
 }));
 
 // Your starred foods
 foodsRouter.get('/favourites', asyncHandler(async (req, res) => {
   const rows = await db.all(`${FOOD_SELECT} WHERE fav.food_id IS NOT NULL ORDER BY f.name`, { user_id: req.user.id });
-  res.json({ foods: rows.map(foodView) });
+  res.json({ foods: rows.map((f) => foodView(f, req.user.id)) });
 }));
 
 foodsRouter.post('/:id/favourite', asyncHandler(async (req, res) => {
@@ -95,7 +100,7 @@ foodsRouter.delete('/:id/favourite', asyncHandler(async (req, res) => {
 foodsRouter.get('/:id', asyncHandler(async (req, res) => {
   const food = await db.get(`${FOOD_SELECT} WHERE f.id = @id`, { user_id: req.user.id, id: idParam(req) });
   if (!food) throw new HttpError(404, 'Food not found');
-  res.json({ food: foodView(food) });
+  res.json({ food: foodView(food, req.user.id) });
 }));
 
 foodsRouter.post('/', asyncHandler(async (req, res) => {
@@ -118,7 +123,7 @@ foodsRouter.post('/', asyncHandler(async (req, res) => {
     if (err.code === '23505') throw new HttpError(409, 'A food with this name already exists');
     throw err;
   }
-  res.status(201).json({ food: foodView(await db.get(`${FOOD_SELECT} WHERE f.id = @id`, { user_id: req.user.id, id: info.id })) });
+  res.status(201).json({ food: foodView(await db.get(`${FOOD_SELECT} WHERE f.id = @id`, { user_id: req.user.id, id: info.id }), req.user.id) });
 }));
 
 // ---------------- FOOD LOG ----------------

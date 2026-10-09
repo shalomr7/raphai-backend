@@ -21,8 +21,10 @@
 //   Plus / Pro / Elite: unlimited rule-based questions, plus a daily AI
 //   allowance (Plus 5 on Flash-Lite, Pro 15, Elite 25 on Flash). After the
 //   AI allowance the coach falls back to rule-based answers (never blocks).
-//   No AI model is connected yet (services/aiCoach.js), so every answer is
-//   rule-based today; the response says engine: 'rule_based' | 'ai'.
+//   Gemini is connected only when GEMINI_API_KEY is set AND the user gave
+//   the 'gemini' consent (ai/index.js); otherwise every answer is
+//   rule-based. The response says engine: 'rule_based' | 'ai'.
+// POST /api/coach/confirm  saves an AI-proposed entry after the user taps confirm.
 // ------------------------------------------------------------
 
 const express = require('express');
@@ -32,6 +34,7 @@ const { validate, asyncHandler } = require('../utils/http');
 const { planAndLimits, upgradeError } = require('../middleware/requirePlan');
 const { PLANS, nextPlanWithMore } = require('../utils/plans');
 const aiCoach = require('../services/aiCoach');
+const { confirmProposal } = require('../ai/tools');
 const summary = require('../services/summary');
 const intelligence = require('../services/intelligence');
 const { today, addDays, hourNow } = require('../utils/dates');
@@ -338,7 +341,9 @@ router.post('/', asyncHandler(async (req, res) => {
     : await aiCoach.tryAiAnswer({ userId, plan, question, context });
   const meta = { plan, remaining_today, ai };
   if (aiAnswer) {
-    return res.json({ topic: 'ai', answer: String(aiAnswer.text).trim(), data: null, context: context || null, guessed_from_context: false, engine: 'ai', ...meta });
+    // data.proposals: entries the AI suggests saving. Nothing is saved until
+    // the app sends a proposal's confirmation_token to POST /api/coach/confirm.
+    return res.json({ topic: 'ai', answer: String(aiAnswer.text).trim(), data: aiAnswer.data || null, context: context || null, guessed_from_context: false, engine: 'ai', ...meta });
   }
 
   if (!rule) {
@@ -353,6 +358,15 @@ router.post('/', asyncHandler(async (req, res) => {
   }
   const result = await rule.answer(userId, q);
   res.json({ topic: rule.topic, answer: result.text.trim(), data: result.data || null, context: context || null, guessed_from_context: guessed, engine: 'rule_based', ...meta });
+}));
+
+// POST /api/coach/confirm { confirmation_token }
+// Saves an entry the AI proposed (ai/tools.js proposeLogEntry), only for the
+// user it was made for, only once, re-validated with the normal rules.
+router.post('/confirm', asyncHandler(async (req, res) => {
+  const { confirmation_token: token } = validate(req.body, { confirmation_token: { type: 'string', required: true, maxLength: 4000 } });
+  const saved = await confirmProposal(req.user.id, token);
+  res.status(201).json({ saved: true, ...saved });
 }));
 
 module.exports = router;

@@ -9,6 +9,8 @@ const express = require('express');
 const cors = require('cors');
 
 const { requireAuth } = require('./middleware/auth');
+const { corsOptions, securityHeaders } = require('./middleware/security');
+const { rateLimit, byIp, byUser } = require('./middleware/rateLimit');
 const { requirePlan } = require('./middleware/requirePlan');
 const { notFound, errorHandler } = require('./middleware/errors');
 
@@ -36,18 +38,25 @@ function createApp() {
   // user's IP (used by security logs and the /delete-account rate limit).
   app.set('trust proxy', Number(process.env.TRUST_PROXY_HOPS ?? 1));
 
-  // CORS lets a web app on another address call this API.
-  // CORS_ORIGIN="*" allows all (fine for development).
-  const origin = process.env.CORS_ORIGIN && process.env.CORS_ORIGIN !== '*'
-    ? process.env.CORS_ORIGIN.split(',').map((s) => s.trim())
-    : '*';
-  app.use(cors({ origin }));
+  // Security headers on every response (helmet: CSP, HSTS, nosniff, frame-deny ...)
+  app.disable('x-powered-by');
+  app.use(securityHeaders());
+
+  // CORS: see middleware/security.js. In production only the origins listed
+  // in CORS_ORIGIN may call the API from a browser ("*" is ignored there).
+  const { mode, ...cors_ } = corsOptions();
+  app.use(cors(cors_));
+
+  // A rough per-IP cap on the whole API (stops floods; normal use is far below it)
+  app.use('/api', rateLimit({ name: 'api_ip', windowMs: 60 * 1000, max: Number(process.env.API_RATE_LIMIT_PER_MIN) || 600, key: byIp }));
 
   // Read JSON bodies (e.g. { "email": "..." }) into req.body
   app.use(express.json({ limit: '100kb' }));
 
-  // A quick "is the server alive?" check
-  app.get('/api/health-check', (req, res) => res.json({ ok: true, app: 'RaphAi', time: new Date().toISOString() }));
+  // A quick "is the server alive?" check (both paths, no login, no data)
+  const alive = (req, res) => res.set('Cache-Control', 'no-store').json({ ok: true, app: 'RaphAi', time: new Date().toISOString() });
+  app.get('/api/health-check', alive);
+  app.get('/health', alive);
 
   // ---- Public routes (no login needed) ----
   app.use('/', legalRoutes); // GET /privacy and GET /terms (web pages)
@@ -71,11 +80,13 @@ function createApp() {
   app.use('/api/consents', requireAuth, consentRoutes);
   // RaphAi Intelligence (each route checks the plan itself: utils/plans.js FEATURE_TIERS)
   app.use('/api/insights', requireAuth, insightsRoutes);
-  app.use('/api/food', requireAuth, foodRoutes);       // POST /api/food/parse
+  app.use('/api/food', requireAuth, rateLimit({ name: 'food_parse_user', windowMs: 60 * 1000, max: 30, key: byUser }), foodRoutes); // POST /api/food/parse
   app.use('/api/activity', requireAuth, activityRoutes);
 
   // Coach: Free gets a daily allowance; paid plans unlimited + daily AI allowance (checked in the route)
-  app.use('/api/coach', requireAuth, coachRoutes);
+  // Burst limit on top of the daily plan limits: 30 questions a minute per user (COACH_RATE_LIMIT_PER_MIN)
+  app.use('/api/coach', requireAuth, rateLimit({ name: 'coach_user', windowMs: 60 * 1000, max: Number(process.env.COACH_RATE_LIMIT_PER_MIN) || 30, key: byUser,
+    message: 'You are asking Raph very quickly. Please wait a minute and try again.' }), coachRoutes);
 
   // Unknown URL -> 404, and any error -> clean JSON
   app.use(notFound);
@@ -84,4 +95,4 @@ function createApp() {
   return app;
 }
 
-module.exports = { createApp };
+module.exports = { createApp, corsMode: () => corsOptions().mode };

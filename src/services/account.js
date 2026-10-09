@@ -24,7 +24,7 @@ const { logSecurity } = require('./securityLog');
 const DUMMY_HASH = bcrypt.hashSync('not-a-real-password', 10);
 async function checkCredentials(email, password) {
   const row = await db.get('SELECT * FROM users WHERE email = $1', [String(email || '').trim().toLowerCase()]);
-  const ok = bcrypt.compareSync(String(password || ''), row ? row.password_hash : DUMMY_HASH);
+  const ok = await bcrypt.compare(String(password || ''), row ? row.password_hash : DUMMY_HASH);
   return row && ok ? row : null;
 }
 

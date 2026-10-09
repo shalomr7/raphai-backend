@@ -6,7 +6,22 @@
 // ------------------------------------------------------------
 
 function notFound(req, res) {
-  res.status(404).json({ error: `Not found: ${req.method} ${req.originalUrl}` });
+  // req.path (not originalUrl) so a ?secret=... is never echoed back
+  res.status(404).json({ error: `Not found: ${req.method} ${req.path}` });
+}
+
+const EMAIL_RE = /[^\s@'"]+@[^\s@'"]+\.[^\s@'"]+/g;
+function safeErrorLine(err, req) {
+  const msg = String((err && err.message) || err).replace(EMAIL_RE, '<email>').slice(0, 300);
+  const stack = String((err && err.stack) || '').split('\n').slice(1, 6).map((l) => l.trim()).join(' | ');
+  return JSON.stringify({
+    level: 'error',
+    route: `${req.method} ${req.baseUrl || ''}${(req.route && req.route.path) || req.path}`,
+    name: err && err.name,
+    code: err && err.code,
+    message: msg,
+    stack,
+  });
 }
 
 // Express knows this is an error handler because it has 4 arguments
@@ -17,10 +32,13 @@ function errorHandler(err, req, res, next) {
     return res.status(400).json({ error: 'Body is not valid JSON' });
   }
 
-  const status = err.status || 500;
+  const status = err.status || err.statusCode || 500;
 
-  // Log real crashes so you can fix them; don't show internals to users
-  if (status >= 500 && !err.expose) console.error(err);
+  // Log real crashes so you can fix them; don't show internals to users.
+  // Never log the request body, headers or Postgres "detail" (which can
+  // contain emails or other values): only what is needed to find the bug.
+  if (status >= 500 && !err.expose) console.error(safeErrorLine(err, req));
+  if (err.retryAfter) res.set('Retry-After', String(err.retryAfter));
 
   res.status(status).json({
     error: status >= 500 && !err.expose ? 'Something went wrong on the server' : err.message,
@@ -30,4 +48,4 @@ function errorHandler(err, req, res, next) {
   });
 }
 
-module.exports = { notFound, errorHandler };
+module.exports = { notFound, errorHandler, safeErrorLine };

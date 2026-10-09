@@ -3,44 +3,81 @@
 // "requireAuth" protects routes. The phone app must send:
 //     Authorization: Bearer <token>
 // The token is what /api/auth/login (or register) returned.
-// If the token is good we put the user's id on req.user and continue.
+// A token is accepted only if:
+//   - it is signed with JWT_SECRET using HS256 (no other algorithm),
+//   - it has not expired (JWT_EXPIRES_IN, default 7 days),
+//   - its user still exists (a deleted account's token stops working), and
+//   - it was issued after users.tokens_valid_after ("log out everywhere").
+// Then req.user = { id } and the request continues.
 // ------------------------------------------------------------
 
 const jwt = require('jsonwebtoken');
 const { HttpError } = require('../utils/http');
 const db = require('../db');
 
+const ALGORITHM = 'HS256';
+const MIN_SECRET_LENGTH = 32;
+const DEV_SECRET = 'dev-only-secret-change-me';
+
+// Only development and test may run without a real secret.
 function jwtSecret() {
   const secret = process.env.JWT_SECRET;
+  const env = process.env.NODE_ENV;
   if (!secret) {
-    // In development we allow a default so the app "just runs".
-    if (process.env.NODE_ENV === 'production') throw new Error('JWT_SECRET must be set in production');
-    return 'dev-only-secret-change-me';
+    if (env === 'development' || env === 'test') return DEV_SECRET;
+    throw new Error('JWT_SECRET must be set (only NODE_ENV=development or test may run without one)');
+  }
+  if (env === 'production' && secret.length < MIN_SECRET_LENGTH) {
+    throw new Error(`JWT_SECRET is too short for production (needs at least ${MIN_SECRET_LENGTH} characters)`);
   }
   return secret;
 }
 
-// Make a token for a user (used by register + login)
+// Called by server.js at start-up so a bad secret stops the deploy
+// instead of failing on the first login.
+function assertAuthConfig() { jwtSecret(); }
+
+// Make a token for a user (used by register + login).
+// The token carries only the user id (no email or name).
 function signToken(user) {
-  return jwt.sign({ sub: user.id, email: user.email }, jwtSecret(), {
+  return jwt.sign({ sub: String(user.id) }, jwtSecret(), {
+    algorithm: ALGORITHM,
     expiresIn: process.env.JWT_EXPIRES_IN || '7d',
   });
 }
 
-function requireAuth(req, res, next) {
+function verifyToken(token) {
+  return jwt.verify(token, jwtSecret(), { algorithms: [ALGORITHM] });
+}
+
+const INVALID = 'Your login has expired or is invalid. Please log in again.';
+
+async function requireAuth(req, res, next) {
   const header = req.headers.authorization || '';
   const [kind, token] = header.split(' ');
   if (kind !== 'Bearer' || !token) {
     return next(new HttpError(401, 'Please log in (missing Bearer token)'));
   }
+  let payload;
   try {
-    const payload = jwt.verify(token, jwtSecret());
-    req.user = { id: payload.sub, email: payload.email };
-    touchLastActive(req.user.id);
-    next();
-  } catch (err) {
-    next(new HttpError(401, 'Your login has expired or is invalid. Please log in again.'));
+    payload = verifyToken(token);
+  } catch {
+    return next(new HttpError(401, INVALID));
   }
+  const id = Number(payload.sub);
+  if (!Number.isInteger(id) || id <= 0) return next(new HttpError(401, INVALID));
+  try {
+    const row = await db.get('SELECT tokens_valid_after FROM users WHERE id = $1', [id]);
+    if (!row) return next(new HttpError(401, INVALID));
+    if (row.tokens_valid_after && Number(payload.iat) < Math.floor(new Date(row.tokens_valid_after).getTime() / 1000)) {
+      return next(new HttpError(401, INVALID));
+    }
+  } catch (err) {
+    return next(err);
+  }
+  req.user = { id };
+  touchLastActive(id);
+  next();
 }
 
 // ------------------------------------------------------------
@@ -62,8 +99,8 @@ function touchLastActive(userId, { force = false } = {}) {
     WHERE id = $1 AND (last_active_at IS NULL OR last_active_at < now() - interval '1 day')`, [userId])
     .catch((err) => {
       lastTouched.delete(userId);
-      console.error('Could not update last_active_at:', err.message);
+      console.error('Could not update last_active_at:', err.code || err.message);
     });
 }
 
-module.exports = { requireAuth, signToken, touchLastActive };
+module.exports = { requireAuth, signToken, verifyToken, touchLastActive, assertAuthConfig, jwtSecret, ALGORITHM };

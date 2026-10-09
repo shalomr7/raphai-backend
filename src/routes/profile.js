@@ -20,7 +20,7 @@ const PROFILE_RULES = {
   activity_factor: { type: 'number', min: 1.2, max: 1.9 },
   goal: { type: 'string', oneOf: ['lose', 'maintain', 'gain'] },
   pace_kg_week: { type: 'number', min: 0, max: 1 },
-  income: { type: 'number', min: 0 }, // monthly, in ₹
+  income: { type: 'money', min: 0, max: 100000000 }, // monthly, in ₹ (whole paise)
   neck_cm: { type: 'number', min: 20, max: 80 },
   waist_cm: { type: 'number', min: 40, max: 200 },
   hip_cm: { type: 'number', min: 50, max: 200 },

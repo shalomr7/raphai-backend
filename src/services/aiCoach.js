@@ -3,11 +3,13 @@
 // The AI (Gemini) part of the Raph coach: daily AI allowance per plan,
 // and the fallback to the rule-based coach.
 //
-// TODAY NO AI MODEL IS CONNECTED. The coach answers with its rules for
-// everyone. This file is the structure the AI will plug into:
+// Without GEMINI_API_KEY no model is connected and the coach answers with
+// its rules for everyone. This file is the structure the AI plugs into:
 //
 //   1. setAiProvider(fn) connects a model. fn({ userId, question, context,
-//      model, plan }) must return { text } or null. (Tests use a fake.)
+//      model, plan }) must return { text, data? } or null / { text: null, reason }.
+//      server.js connects Gemini (ai/index.js) when GEMINI_API_KEY is set.
+//      (Tests use a fake.)
 //   2. On each paid question we try to use ONE unit of today's AI allowance
 //      (LIMITS[plan].ai_coach_per_day, feature 'coach_ai' in feature_usage).
 //   3. If there is no provider, no allowance left, or the model fails,
@@ -88,15 +90,19 @@ async function tryAiAnswer({ userId, plan, question, context }) {
   }
 
   let answer = null;
+  let failed = false;
   try {
     answer = await provider({ userId, question, context, model: lim.ai_coach_model, plan });
   } catch (e) {
-    console.warn('AI coach failed, using rule-based answer:', e.message);
+    console.warn('AI coach failed, using rule-based answer:', String(e.message || e).slice(0, 120));
     answer = null;
+    failed = true;
   }
   if (!answer || !answer.text) {
     await giveBack(userId);
-    return { answer: null, info: { ...info, used: count - 1, remaining: Math.max(0, limit - count + 1) } };
+    // reason (from ai/index.js): consent_required | guardrail | timeout | empty_answer | too_many_tool_rounds
+    const reason = answer && answer.reason ? String(answer.reason) : (failed ? 'provider_error' : 'no_answer');
+    return { answer: null, info: { ...info, used: count - 1, remaining: Math.max(0, limit - count + 1), reason } };
   }
   return { answer, info: { ...info, used: count, remaining: Math.max(0, limit - count), fell_back: false } };
 }

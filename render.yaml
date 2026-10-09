@@ -21,10 +21,12 @@ services:
         value: production
       - key: APP_TZ
         value: Asia/Kolkata
-      - key: CORS_ORIGIN
-        value: "*"
+      # CORS_ORIGIN: leave unset (the Android app does not need CORS; "*" is ignored in production)
       - key: NODE_VERSION
         value: "22"
+      # Gemini (server only). Unset = rule-based coach.
+      - key: GEMINI_API_KEY
+        sync: false
       # ---- Google Play Billing (subscriptions) ----
       # The service-account key JSON (paste the whole file, or the file as base64).
       - key: GOOGLE_PLAY_SERVICE_ACCOUNT_JSON

@@ -10,7 +10,7 @@
 
 const db = require('../db');
 
-const EVENTS = ['login_success', 'login_failed', 'password_change', 'account_deleted', 'export'];
+const EVENTS = ['login_success', 'login_failed', 'password_change', 'account_deleted', 'export', 'logout_all'];
 const RETENTION = '1 year';
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -30,7 +30,7 @@ async function logSecurity(event, { req, userId = null } = {}) {
     await db.run('INSERT INTO security_logs (user_id, event, ip, user_agent) VALUES ($1, $2, $3, $4)',
       [userId === null || userId === undefined ? null : Number(userId), event, clientIp(req), userAgent(req)]);
   } catch (err) {
-    console.error('Could not write security log:', err.message);
+    console.error('Could not write security log:', err.code || err.message);
   }
 }
 

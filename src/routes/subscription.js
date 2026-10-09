@@ -197,7 +197,8 @@ subRouter.post('/trial', asyncHandler(async (req, res) => {
 
 // DEVELOPMENT ONLY — lets you test Plus/Pro/Elite features without paying.
 subRouter.post('/dev-activate', asyncHandler(async (req, res) => {
-  if (process.env.NODE_ENV === 'production') throw new HttpError(403, 'Not available in production');
+  // Allow-list, not deny-list: if NODE_ENV is missing or misspelt, it stays OFF.
+  if (!['development', 'test'].includes(process.env.NODE_ENV)) throw new HttpError(403, 'Not available in production');
   const b = validate(req.body, PLAN_RULES);
   await activatePlan(req.user.id, b.plan, GOOGLE_BASE_PLANS[b.period] || b.period);
   res.json({ subscription: await subscriptionStatus(req.user.id), note: 'Activated without payment (development mode)' });
