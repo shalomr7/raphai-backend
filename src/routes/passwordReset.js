@@ -58,8 +58,8 @@ router.post('/forgot', forgotIpLimit, asyncHandler(async (req, res) => {
     try {
       await provider.send({
         to: addr,
-        subject: 'Your RaphAi password reset code',
-        text: `Your RaphAi password reset code is ${code}\n\nIt is valid for ${CODE_TTL_MIN} minutes. If you did not ask for this, you can ignore this email; your password stays the same.`,
+        subject: 'Your HeartPurse password reset code',
+        text: `Your HeartPurse password reset code is ${code}\n\nIt is valid for ${CODE_TTL_MIN} minutes. If you did not ask for this, you can ignore this email; your password stays the same.`,
       });
     } catch (err) {
       console.error('Password reset email failed:', err.message);

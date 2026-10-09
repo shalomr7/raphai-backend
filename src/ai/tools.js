@@ -73,7 +73,7 @@ async function confirmProposal(userId, token) {
   try {
     p = jwt.verify(String(token || ''), jwtSecret(), { algorithms: [ALGORITHM], audience: PROPOSAL_AUDIENCE });
   } catch {
-    throw new HttpError(400, 'This suggestion has expired or is not valid. Ask Raph again.');
+    throw new HttpError(400, 'This suggestion has expired or is not valid. Ask again.');
   }
   if (String(p.sub) !== String(userId)) throw new HttpError(403, 'This suggestion belongs to another account.');
   const values = validateProposal(p.kind, p.values);
@@ -187,7 +187,7 @@ const TOOLS = {
     },
   },
   getDailyBrief: {
-    description: "Today's RaphScore, top priorities and the morning brief built from the user's own data.",
+    description: "Today's HeartScore, top priorities and the morning brief built from the user's own data.",
     parameters: { type: 'object', properties: {} },
     rules: {},
     async run(userId) {

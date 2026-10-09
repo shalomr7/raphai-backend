@@ -302,7 +302,7 @@ async function recomputeEntitlement(userId, q = db) {
  *  save Google's answer and recalculate the plan of every user it touches,
  *  all in ONE transaction. If userId is given and the token already belongs
  *  to a DIFFERENT user, nothing is saved and a 409 error is thrown
- *  (one purchase can only ever unlock one RaphAi account).
+ *  (one purchase can only ever unlock one HeartPurse account).
  *  revoke: true marks the token as refunded/revoked for good.
  */
 async function storeAndRecompute(purchaseToken, mapped, raw, userId = null, { revoke = false } = {}) {
@@ -311,7 +311,7 @@ async function storeAndRecompute(purchaseToken, mapped, raw, userId = null, { re
     await t.query('SELECT pg_advisory_xact_lock(hashtext($1))', [purchaseToken]);
     const existing = await t.get('SELECT user_id FROM google_play_purchases WHERE purchase_token = $1', [purchaseToken]);
     if (userId && existing && existing.user_id && Number(existing.user_id) !== Number(userId)) {
-      throw new HttpError(409, 'This Google Play purchase is already linked to another RaphAi account.');
+      throw new HttpError(409, 'This Google Play purchase is already linked to another HeartPurse account.');
     }
     const affected = await savePurchase(t, purchaseToken, mapped, raw, userId);
     if (revoke) {

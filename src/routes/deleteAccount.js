@@ -45,14 +45,14 @@ function resetRateLimit() { attempts.clear(); } // for tests
 function body({ message = null, kind = null, email = '' } = {}) {
   const msg = message ? `<p class="${kind}" role="alert">${escapeHtml(message)}</p>` : '';
   if (kind === 'success') {
-    return `<h1>Delete your RaphAi account</h1>
+    return `<h1>Delete your HeartPurse account</h1>
 ${msg}
 <p class="notice"><strong>Remember:</strong> deleting your account does <strong>not</strong> cancel a Google Play subscription.
 If you had one, cancel it at <a href="${PLAY_SUBSCRIPTIONS_URL}">${PLAY_SUBSCRIPTIONS_URL}</a>.</p>
-<p>You can now uninstall the app. Thank you for using RaphAi.</p>`;
+<p>You can now uninstall the app. Thank you for using HeartPurse.</p>`;
   }
-  return `<h1>Delete your RaphAi account</h1>
-<p>Use this page to delete your RaphAi account and its data if you no longer have the app.
+  return `<h1>Delete your HeartPurse account</h1>
+<p>Use this page to delete your HeartPurse account and its data if you no longer have the app.
 If you still have the app, you can also do it there: <strong>You &rarr; Privacy Centre &rarr; Delete account</strong>.</p>
 
 <p class="notice"><strong>Google Play subscriptions are not cancelled automatically.</strong>
@@ -68,7 +68,7 @@ Cancel it first at <a href="${PLAY_SUBSCRIPTIONS_URL}">${PLAY_SUBSCRIPTIONS_URL}
   <li>Your health and wellness logs: food, water, sleep, mood and notes, weight, workouts and steps.</li>
   <li>Activity and sleep synced from Health Connect or the phone pedometer.</li>
   <li>Your money data: expenses, budgets, savings goals, bills and bill payments.</li>
-  <li>Your insights (RaphScore history), reminder settings, favourites, plan details and daily feature-use counts (including the Coach's daily question count).</li>
+  <li>Your insights (HeartScore history), reminder settings, favourites, plan details and daily feature-use counts (including the Coach's daily question count).</li>
 </ul>
 
 <h2>What we keep, and for how long</h2>
@@ -93,7 +93,7 @@ ${msg}
   <button type="submit">Permanently delete my account</button>
 </form>
 <p>Forgot your password, or can't sign in? Email [SUPPORT EMAIL] from your registered email with the subject
-"Delete my RaphAi account". We will check it is you and then delete it.</p>`;
+"Delete my HeartPurse account". We will check it is you and then delete it.</p>`;
 }
 
 function send(res, status, opts) {
@@ -105,7 +105,7 @@ function send(res, status, opts) {
       'Content-Security-Policy': "frame-ancestors 'none'; form-action 'self'",
       'Referrer-Policy': 'no-referrer',
     })
-    .send(page('Delete your RaphAi account', body(opts)));
+    .send(page('Delete your HeartPurse account', body(opts)));
 }
 
 router.get('/delete-account', (req, res) => send(res, 200));
@@ -124,7 +124,7 @@ router.post('/delete-account', express.urlencoded({ extended: false, limit: '10k
   if (!user) return send(res, 401, { kind: 'error', message: GENERIC_ERROR, email });
 
   await deleteAccount(user.id, { req });
-  return send(res, 200, { kind: 'success', message: 'Your RaphAi account and its data have been deleted.' });
+  return send(res, 200, { kind: 'success', message: 'Your HeartPurse account and its data have been deleted.' });
 }));
 
 module.exports = { router, resetRateLimit, MAX_ATTEMPTS };

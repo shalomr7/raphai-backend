@@ -1,4 +1,4 @@
-# RaphAi pricing in code (October 2026)
+# HeartPurse pricing in code (October 2026)
 
 Source of truth: `src/utils/plans.js`. Research and reasoning: the owner's pricing report (8 Oct 2026).
 

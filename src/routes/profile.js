@@ -14,7 +14,7 @@ const router = express.Router();
 // The rules for each profile field
 const PROFILE_RULES = {
   sex: { type: 'string', oneOf: ['male', 'female'] },
-  age: { type: 'integer', min: 18, max: 100 }, // RaphAi is for adults (18+) only
+  age: { type: 'integer', min: 18, max: 100 }, // HeartPurse is for adults (18+) only
   height_cm: { type: 'number', min: 100, max: 250 },
   weight_kg: { type: 'number', min: 25, max: 300 },
   activity_factor: { type: 'number', min: 1.2, max: 1.9 },

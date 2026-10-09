@@ -322,7 +322,7 @@ router.post('/', asyncHandler(async (req, res) => {
       RETURNING count`, [userId, today(), limit]);
     if (!row) {
       const up = nextPlanWithMore(plan, 'coach_per_day');
-      throw upgradeError(`You've used your ${limit} free Raph questions today. They reset tomorrow, or get ${up ? PLANS[up].name : 'a paid plan'} for unlimited coaching.`,
+      throw upgradeError(`You've used your ${limit} free coach questions today. They reset tomorrow, or get ${up ? PLANS[up].name : 'a paid plan'} for unlimited coaching.`,
         { plan, upgradeTo: up, limit });
     }
     remaining_today = Math.max(0, limit - row.count);

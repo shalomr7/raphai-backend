@@ -1,12 +1,12 @@
-# RaphAi Privacy Policy
+# HeartPurse Privacy Policy
 
 **Version:** 2.0
 **Effective date:** 8 October 2026
 **Last updated:** 8 October 2026
 
-This Privacy Policy explains what personal data the RaphAi app collects, why we collect it, where we keep it, who we share it with, how long we keep it, how we protect it, and the rights you have. We have written it in simple English. If anything is unclear, write to our Grievance Officer (Section 17).
+This Privacy Policy explains what personal data the HeartPurse app collects, why we collect it, where we keep it, who we share it with, how long we keep it, how we protect it, and the rights you have. We have written it in simple English. If anything is unclear, write to our Grievance Officer (Section 17).
 
-RaphAi is an Android app (package `com.raphai.app`) that helps you track your health, fitness, habits and personal money in one place.
+HeartPurse is an Android app (package `com.raphai.app`) that helps you track your health, fitness, habits and personal money in one place.
 
 > **Our promises**
 >
@@ -34,7 +34,7 @@ RaphAi is an Android app (package `com.raphai.app`) that helps you track your he
 | Phone pedometer steps | Count steps if you don't use Health Connect | Mumbai | Until you delete your account | **Yes** (treated as health data) |
 | Expenses (amount, category, UPI / card / cash, note), budgets, savings goals, bills, bill payments, monthly income | Track your money, budgets and bills | Mumbai | Until you delete your account | **Treated as SPDI** (financial information, Rule 3(ii)) — we never collect card, bank account or UPI ID numbers |
 | Bill-split names and amounts; SIP / EMI calculator inputs | Split bills; show calculator results | **Only on your phone** (bill split) / **not stored at all** (calculators) | Until you delete them or uninstall | — |
-| Computed insights: RaphScore, daily priorities, "life patterns", daily brief | Explain your progress and suggest next steps | Calculated on our server (Singapore) by fixed rules; daily RaphScore history stored in Mumbai | Until you delete your account | **Yes** (derived from health data) |
+| Computed insights: HeartScore, daily priorities, "life patterns", daily brief | Explain your progress and suggest next steps | Calculated on our server (Singapore) by fixed rules; daily HeartScore history stored in Mumbai | Until you delete your account | **Yes** (derived from health data) |
 | Coach questions | Answer your questions | Processed on our server (Singapore) to answer, then discarded — **not stored**. Only a **daily count** of questions is kept (Mumbai) | Questions: **not stored**. Daily count: until you delete your account | Questions: **Yes** while processed (may contain health or money details). Daily count: No |
 | Feature-use counts (e.g. how many food parses or Coach questions today) | Apply Free-plan limits fairly | Mumbai | Until you delete your account | No |
 | Purchase records from Google Play (purchase token, plan, status, expiry) | Unlock your plan; tax and accounting records | Mumbai | **8 years** (tax law) | No — we never see card or UPI details |
@@ -46,7 +46,7 @@ RaphAi is an Android app (package `com.raphai.app`) that helps you track your he
 
 ## 1. Who we are
 
-RaphAi is run by **Shalem Raj Rooppa, an individual developer operating under the name RaphAi (sole proprietorship)**, based in Andhra Pradesh, India ("**RaphAi**", "**we**", "**us**", "**our**").
+HeartPurse is run by **Shalem Raj Rooppa, an individual developer operating under the name HeartPurse (sole proprietorship)**, based in Andhra Pradesh, India ("**HeartPurse**", "**we**", "**us**", "**our**").
 
 - Under the **Digital Personal Data Protection Act, 2023** ("**DPDP Act**"), we are the **Data Fiduciary** and you are the **Data Principal**.
 - Under the **Information Technology Act, 2000** ("**IT Act**"), a sole proprietorship counts as a "body corporate" for section 43A, so the **SPDI Rules, 2011** apply to us.
@@ -55,9 +55,9 @@ RaphAi is run by **Shalem Raj Rooppa, an individual developer operating under th
 
 ---
 
-## 2. Who can use RaphAi
+## 2. Who can use HeartPurse
 
-RaphAi is only for adults **18 years or older**. The DPDP Act treats anyone under 18 as a child. We do not design RaphAi for children, we do not knowingly collect children's data, and we do not track, profile or target ads at children. At sign-up you confirm you are 18 or older. If we learn that an account belongs to someone under 18, we will delete it and its data. To report this, email [SUPPORT EMAIL].
+HeartPurse is only for adults **18 years or older**. The DPDP Act treats anyone under 18 as a child. We do not design HeartPurse for children, we do not knowingly collect children's data, and we do not track, profile or target ads at children. At sign-up you confirm you are 18 or older. If we learn that an account belongs to someone under 18, we will delete it and its data. To report this, email [SUPPORT EMAIL].
 
 ---
 
@@ -76,17 +76,17 @@ Sex, age, height, weight, activity level, goal, pace, daily step goal, monthly i
 Food logs (including the text you type, such as "2 eggs and a glass of milk", which our server turns into food entries using fixed rules — no outside AI), custom foods, favourites, water, sleep hours and quality, mood score and optional note, weight history, workouts, step counts, and your sit-reminder settings. Please only write in notes what you are comfortable storing.
 
 ### 3.4 Data from Android Health Connect and your phone
-With your separate permission for **each** data type, RaphAi reads from **Health Connect**:
+With your separate permission for **each** data type, HeartPurse reads from **Health Connect**:
 
 - steps, distance, active calories burned, exercise sessions, heart rate, resting heart rate, sleep and weight.
 
 This data may come from your phone or from wearables and apps (for example Fitbit, Samsung Health, Garmin) that write to Health Connect.
 
-- **Background reading.** If you allow it (`READ_HEALTH_DATA_IN_BACKGROUND`), RaphAi can read this data while the app is closed, so your activity and sleep stay up to date. You can turn background access off at any time and still use the app.
+- **Background reading.** If you allow it (`READ_HEALTH_DATA_IN_BACKGROUND`), HeartPurse can read this data while the app is closed, so your activity and sleep stay up to date. You can turn background access off at any time and still use the app.
 - **Synced to our server.** What we read is sent over an encrypted connection and saved to your account in Mumbai, so you keep your history and can see it on other devices.
 - **Phone pedometer.** If you don't use Health Connect, we can count steps with the phone's motion sensor (Physical activity permission, `ACTIVITY_RECOGNITION`).
 
-You can change or remove these permissions at any time in **Phone Settings → Health Connect → App permissions → RaphAi** (or **Phone Settings → Apps → RaphAi → Permissions** for Physical activity).
+You can change or remove these permissions at any time in **Phone Settings → Health Connect → App permissions → HeartPurse** (or **Phone Settings → Apps → HeartPurse → Permissions** for Physical activity).
 
 ### 3.5 Money data you enter
 Expenses (amount, category, payment mode such as UPI, card or cash, and an optional note), budgets, savings goals, bills, bill payments and monthly income.
@@ -96,10 +96,10 @@ Expenses (amount, category, payment mode such as UPI, card or cash, and an optio
 - **We do not collect:** card numbers, bank account numbers, UPI IDs, SMS messages or data from your bank or UPI apps. We do not connect to your bank.
 
 ### 3.6 Computed insights
-Our server calculates **RaphScore** (a score across life areas such as health, fitness and money), **daily priorities**, **"life patterns"** (for example, "on days you sleep 7+ hours you walk more") and a **daily brief**. These are produced by **fixed rules written by us**, not by an outside AI. They are suggestions, not decisions about you: nothing is decided about your eligibility for anything, and they have no legal effect. We save your daily RaphScore so we can show how it changed.
+Our server calculates **HeartScore** (a score across life areas such as health, fitness and money), **daily priorities**, **"life patterns"** (for example, "on days you sleep 7+ hours you walk more") and a **daily brief**. These are produced by **fixed rules written by us**, not by an outside AI. They are suggestions, not decisions about you: nothing is decided about your eligibility for anything, and they have no legal effect. We save your daily HeartScore so we can show how it changed.
 
 ### 3.7 Coach questions
-The RaphAi Coach answers your questions using your messages and the parts of your profile and logs needed to answer.
+The HeartPurse Coach answers your questions using your messages and the parts of your profile and logs needed to answer.
 
 - **Today** replies come from **rule-based logic on our own server**. No outside AI company sees your questions.
 - **Your questions are not stored.** Each question is processed on our server only to work out the answer, and is then discarded. We keep only a **daily count** of how many questions you asked (to apply the Free-plan daily limit fairly).
@@ -129,7 +129,7 @@ We use your data **only** for the purposes below (SPDI Rule 5(5); DPDP Act secti
 | Calculate targets and show your progress | Profile, health logs, Health Connect / pedometer data |
 | Turn typed food text into food entries | The text you type, our food database |
 | Track expenses, budgets, savings goals and bills | Money data, monthly income |
-| Produce RaphScore, priorities, life patterns and the daily brief | Profile, health, activity and money data |
+| Produce HeartScore, priorities, life patterns and the daily brief | Profile, health, activity and money data |
 | Give Coach replies | Your question (processed, not stored) plus the relevant profile, health and money data |
 | Send reminders you set | Reminder settings, bills, notification permission |
 | Unlock and manage your plan; keep tax records | Purchase records, account data |
@@ -153,21 +153,21 @@ We use your data **only** for the purposes below (SPDI Rule 5(5); DPDP Act secti
 
 ## 6. Health Connect data — Limited Use
 
-RaphAi follows Google Play's rules for Android health permissions and Health Connect ([Google Play guidance](https://support.google.com/googleplay/android-developer/answer/12991134)). Data we get from Health Connect:
+HeartPurse follows Google Play's rules for Android health permissions and Health Connect ([Google Play guidance](https://support.google.com/googleplay/android-developer/answer/12991134)). Data we get from Health Connect:
 
-- is used **only** to provide and improve the health and fitness features you see in RaphAi;
+- is used **only** to provide and improve the health and fitness features you see in HeartPurse;
 - is **never** used for advertising, ad targeting, interest-based ads or ad measurement;
 - is **never sold**, and never given to advertising platforms or data brokers;
 - is **never** used to decide credit, lending, insurance or employment;
-- is **not** shared with anyone except: (a) our service providers who run RaphAi for us under contract (Section 7), (b) when you ask us to (for example, an export), (c) when required by law, or (d) in a merger or sale of the business, with the same protections;
-- is **not read by people** at RaphAi unless you allow it (for example, in a support request), it is needed for security, or the law requires it;
+- is **not** shared with anyone except: (a) our service providers who run HeartPurse for us under contract (Section 7), (b) when you ask us to (for example, an export), (c) when required by law, or (d) in a merger or sale of the business, with the same protections;
+- is **not read by people** at HeartPurse unless you allow it (for example, in a support request), it is needed for security, or the law requires it;
 - is encrypted in transit and at rest.
 
 ---
 
 ## 7. Who we share data with
 
-**We do not sell your personal data.** We share it only with service providers (**Data Processors**) who help us run RaphAi, under contract, and only as much as they need (DPDP Act section 8(2)). We do **not** disclose your SPDI to anyone else without your prior consent (SPDI Rule 6), except as described below.
+**We do not sell your personal data.** We share it only with service providers (**Data Processors**) who help us run HeartPurse, under contract, and only as much as they need (DPDP Act section 8(2)). We do **not** disclose your SPDI to anyone else without your prior consent (SPDI Rule 6), except as described below.
 
 | Provider | What they do | Where | Gets health data? |
 |---|---|---|---|
@@ -188,7 +188,7 @@ RaphAi follows Google Play's rules for Android health permissions and Health Con
 
 We **never publish** your SPDI (SPDI Rule 6(3)), and anyone who receives it from us must not pass it on (SPDI Rule 6(4)).
 
-**Business transfer.** If RaphAi is merged, sold or reorganised, your data moves only with the same protections as this policy, and we will tell you first.
+**Business transfer.** If HeartPurse is merged, sold or reorganised, your data moves only with the same protections as this policy, and we will tell you first.
 
 Google's own use of data is covered by Google's privacy policy: <https://policies.google.com/privacy>.
 
@@ -251,8 +251,8 @@ You have these rights under the **SPDI Rules, 2011** and the **DPDP Act, 2023**:
 **How to use your rights**
 
 - **Export your data:** **You → Privacy Centre → Export my data.**
-- **Delete your account in the app:** **You → Privacy Centre → Delete account.** This deletes your account and all linked data on our server and clears RaphAi data on your phone.
-- **Delete your account without the app:** go to **<https://raphai-backend.onrender.com/delete-account>**, or email [SUPPORT EMAIL] from your registered email with the subject "Delete my RaphAi account". We will check it is you and then delete it.
+- **Delete your account in the app:** **You → Privacy Centre → Delete account.** This deletes your account and all linked data on our server and clears HeartPurse data on your phone.
+- **Delete your account without the app:** go to **<https://raphai-backend.onrender.com/delete-account>**, or email [SUPPORT EMAIL] from your registered email with the subject "Delete my HeartPurse account". We will check it is you and then delete it.
 - **Health Connect / Physical activity / notifications:** change them in your phone settings.
 - **Ads:** **You → Privacy Centre → Ad choices.**
 - **Anything else** (access summary, correction, nomination, complaints): email [SUPPORT EMAIL].
@@ -301,9 +301,9 @@ If a security incident affects your data, we will:
 
 ---
 
-## 15. Is RaphAi an "intermediary"?
+## 15. Is HeartPurse an "intermediary"?
 
-RaphAi is mainly **not** an intermediary under the IT Act. It is a personal tracking app: the data you enter is for your own use and is not published to or shared with other users. If any part of RaphAi is ever treated as an intermediary (section 2(1)(w) of the IT Act), we will follow the IT (Intermediary Guidelines and Digital Media Ethics Code) Rules, 2021: we publish this policy and our Terms, and complaints about content under Rule 3(2) will be **acknowledged within 24 hours and resolved within 15 days**. That would also let us rely on the safe-harbour protection in **section 79** of the IT Act for content posted by others.
+HeartPurse is mainly **not** an intermediary under the IT Act. It is a personal tracking app: the data you enter is for your own use and is not published to or shared with other users. If any part of HeartPurse is ever treated as an intermediary (section 2(1)(w) of the IT Act), we will follow the IT (Intermediary Guidelines and Digital Media Ethics Code) Rules, 2021: we publish this policy and our Terms, and complaints about content under Rule 3(2) will be **acknowledged within 24 hours and resolved within 15 days**. That would also let us rely on the safe-harbour protection in **section 79** of the IT Act for content posted by others.
 
 ---
 
@@ -317,7 +317,7 @@ We may update this policy when we add features or when the law changes. We will 
 
 You can raise any question, complaint or rights request with our Grievance Officer:
 
-**Shalem Raj Rooppa** — Grievance Officer, RaphAi
+**Shalem Raj Rooppa** — Grievance Officer, HeartPurse
 Email: [SUPPORT EMAIL]
 Post: [POSTAL ADDRESS], Andhra Pradesh, India
 

@@ -54,7 +54,7 @@ function createApp() {
   app.use(express.json({ limit: '100kb' }));
 
   // A quick "is the server alive?" check (both paths, no login, no data)
-  const alive = (req, res) => res.set('Cache-Control', 'no-store').json({ ok: true, app: 'RaphAi', time: new Date().toISOString() });
+  const alive = (req, res) => res.set('Cache-Control', 'no-store').json({ ok: true, app: 'HeartPurse', time: new Date().toISOString() });
   app.get('/api/health-check', alive);
   app.get('/health', alive);
 
@@ -79,7 +79,7 @@ function createApp() {
   app.use('/api/dashboard', requireAuth, dashboardRoutes);
   app.use('/api/export', requireAuth, exportRoutes);
   app.use('/api/consents', requireAuth, consentRoutes);
-  // RaphAi Intelligence (each route checks the plan itself: utils/plans.js FEATURE_TIERS)
+  // HeartPurse Intelligence (each route checks the plan itself: utils/plans.js FEATURE_TIERS)
   app.use('/api/insights', requireAuth, insightsRoutes);
   app.use('/api/food', requireAuth, rateLimit({ name: 'food_parse_user', windowMs: 60 * 1000, max: 30, key: byUser }), foodRoutes); // POST /api/food/parse
   app.use('/api/activity', requireAuth, activityRoutes);
@@ -87,7 +87,7 @@ function createApp() {
   // Coach: Free gets a daily allowance; paid plans unlimited + daily AI allowance (checked in the route)
   // Burst limit on top of the daily plan limits: 30 questions a minute per user (COACH_RATE_LIMIT_PER_MIN)
   app.use('/api/coach', requireAuth, rateLimit({ name: 'coach_user', windowMs: 60 * 1000, max: Number(process.env.COACH_RATE_LIMIT_PER_MIN) || 30, key: byUser,
-    message: 'You are asking Raph very quickly. Please wait a minute and try again.' }), coachRoutes);
+    message: 'You are asking very quickly. Please wait a minute and try again.' }), coachRoutes);
 
   // Unknown URL -> 404, and any error -> clean JSON
   app.use(notFound);

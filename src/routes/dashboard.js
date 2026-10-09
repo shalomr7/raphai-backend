@@ -2,7 +2,7 @@
 // ------------------------------------------------------------
 // GET /api/dashboard?date=2026-10-07   (also GET /api/dashboard/streaks)
 // One call that gives the home screen everything:
-//   RaphScore (0–100) = average of Health score and Wealth score
+//   HeartScore (0–100) = average of Health score and Wealth score
 //   Health score = average of calories, protein, water, steps, sleep scores (today)
 //   Wealth score = average of savings rate, bills paid, budget adherence (this month)
 // ------------------------------------------------------------

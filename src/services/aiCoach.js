@@ -1,6 +1,6 @@
 // services/aiCoach.js
 // ------------------------------------------------------------
-// The AI (Gemini) part of the Raph coach: daily AI allowance per plan,
+// The AI (Gemini) part of the HeartPurse coach: daily AI allowance per plan,
 // and the fallback to the rule-based coach.
 //
 // Without GEMINI_API_KEY no model is connected and the coach answers with
@@ -83,8 +83,8 @@ async function tryAiAnswer({ userId, plan, question, context }) {
       info: {
         ...info, used: limit, remaining: 0, limit_reached: true, upgrade_to: up,
         message: up
-          ? `You've used your ${limit} AI answers for today on ${PLANS[plan].name}, so this answer comes from Raph's built-in coach. ${PLANS[up].name} gives you ${LIMITS[up].ai_coach_per_day} AI answers a day.`
-          : `You've used your ${limit} AI answers for today, so this answer comes from Raph's built-in coach. AI answers reset tomorrow.`,
+          ? `You've used your ${limit} AI answers for today on ${PLANS[plan].name}, so this answer comes from the built-in coach. ${PLANS[up].name} gives you ${LIMITS[up].ai_coach_per_day} AI answers a day.`
+          : `You've used your ${limit} AI answers for today, so this answer comes from the built-in coach. AI answers reset tomorrow.`,
       },
     };
   }

@@ -39,7 +39,7 @@ async function start() {
 
   const app = createApp();
   const server = app.listen(PORT, () => {
-    console.log(`RaphAi API running on http://localhost:${PORT}`);
+    console.log(`HeartPurse API running on http://localhost:${PORT}`);
     console.log(`Try: http://localhost:${PORT}/api/health-check`);
   });
 
@@ -53,6 +53,6 @@ async function start() {
 }
 
 start().catch((err) => {
-  console.error('Could not start RaphAi:', err.message);
+  console.error('Could not start HeartPurse:', err.message);
   process.exit(1);
 });

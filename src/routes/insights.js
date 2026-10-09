@@ -1,7 +1,7 @@
 // routes/insights.js
 // ------------------------------------------------------------
-// RaphAi Intelligence (rule-based, uses the user's own data):
-//   GET /api/insights/today            Free + Pro: RaphScore (6 areas + why it changed),
+// HeartPurse Intelligence (rule-based, uses the user's own data):
+//   GET /api/insights/today            Free + Pro: HeartScore (6 areas + why it changed),
 //                                      top 3 priorities, one insight, nutrition safety,
 //                                      hydration advice (Indian time of day), budget left
 //   GET /api/insights/trends?days=7    days = 7, 30, 90 or 365. Longest window per plan:
@@ -21,7 +21,7 @@ const intelligence = require('../services/intelligence');
 const router = express.Router();
 
 const locked = (feature, planNeeded) => ({
-  locked: true, feature, plan_needed: planNeeded, message: `${feature} is part of RaphAi ${PLANS[planNeeded].name}.`,
+  locked: true, feature, plan_needed: planNeeded, message: `${feature} is part of HeartPurse ${PLANS[planNeeded].name}.`,
 });
 
 router.get('/today', asyncHandler(async (req, res) => {

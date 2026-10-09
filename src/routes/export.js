@@ -49,7 +49,7 @@ router.get('/', asyncHandler(async (req, res) => {
   const userId = req.user.id;
   const data = {
     exported_at: new Date().toISOString(),
-    app: 'RaphAi',
+    app: 'HeartPurse',
     user: await db.get('SELECT id, name, email, created_at FROM users WHERE id = $1', [userId]),
   };
   for (const [key, table] of Object.entries(USER_TABLES)) {

@@ -1,28 +1,28 @@
-# RaphAi Terms & Conditions
+# HeartPurse Terms & Conditions
 
 **Version:** 2.1
 **Effective date:** 8 October 2026
 **Last updated:** 8 October 2026
 
-These Terms & Conditions ("**Terms**") are a legal agreement between you and **Shalem Raj Rooppa, an individual developer operating under the name RaphAi (sole proprietorship)**, [POSTAL ADDRESS], Andhra Pradesh, India ("**RaphAi**", "**we**", "**us**", "**our**"). They cover the RaphAi Android app (package `com.raphai.app`) and related services (together, the "**Service**").
+These Terms & Conditions ("**Terms**") are a legal agreement between you and **Shalem Raj Rooppa, an individual developer operating under the name HeartPurse (sole proprietorship)**, [POSTAL ADDRESS], Andhra Pradesh, India ("**HeartPurse**", "**we**", "**us**", "**our**"). They cover the HeartPurse Android app (package `com.raphai.app`) and related services (together, the "**Service**").
 
-**By creating an account or using RaphAi, you agree to these Terms and to our Privacy Policy** (<https://raphai-backend.onrender.com/privacy>). If you do not agree, please do not use RaphAi. These Terms are an electronic record under the Information Technology Act, 2000 and do not need a physical signature.
+**By creating an account or using HeartPurse, you agree to these Terms and to our Privacy Policy** (<https://raphai-backend.onrender.com/privacy>). If you do not agree, please do not use HeartPurse. These Terms are an electronic record under the Information Technology Act, 2000 and do not need a physical signature.
 
 > **The most important points**
 >
 > - You must be **18 or older**.
-> - RaphAi is **not a doctor** and **not a financial adviser**. All numbers are estimates.
-> - The **Coach, RaphScore and insights can be wrong**. Do not rely on them for medical or money decisions.
+> - HeartPurse is **not a doctor** and **not a financial adviser**. All numbers are estimates.
+> - The **Coach, HeartScore and insights can be wrong**. Do not rely on them for medical or money decisions.
 > - Monthly, quarterly and yearly plans **renew automatically** through Google Play until you cancel in Google Play. Prepaid plans do not renew.
 > - Refunds follow **Google Play's refund policy**. We may also give goodwill refunds.
 > - **We never sell your data, never give loans, and never use Health Connect data for ads.**
 
 ---
 
-## 1. Who can use RaphAi
+## 1. Who can use HeartPurse
 
 - You must be at least **18 years old** and able to make a binding contract under Indian law.
-- RaphAi is not for children. If you are under 18, do not use it.
+- HeartPurse is not for children. If you are under 18, do not use it.
 - Give true information when you sign up and keep it up to date.
 
 ## 2. Your account
@@ -37,7 +37,7 @@ These Terms & Conditions ("**Terms**") are a legal agreement between you and **S
 
 ### 3.1 Plans and prices
 
-RaphAi has a free plan and three paid plans. Prices are in Indian rupees, as listed in Google Play India:
+HeartPurse has a free plan and three paid plans. Prices are in Indian rupees, as listed in Google Play India:
 
 | Plan | Monthly | Quarterly (3 months) | Yearly | Prepaid 1 month (no auto-renew) |
 |---|---|---|---|---|
@@ -80,8 +80,8 @@ Each offer shows its price, length and what you pay afterwards in Google Play be
 
 ### 3.6 How to cancel
 
-- Cancel anytime in **Google Play → Profile → Payments & subscriptions → Subscriptions → RaphAi → Cancel subscription**, or at <https://play.google.com/store/account/subscriptions>.
-- **Uninstalling the app or deleting your RaphAi account does not cancel your subscription.** You must cancel in Google Play.
+- Cancel anytime in **Google Play → Profile → Payments & subscriptions → Subscriptions → HeartPurse → Cancel subscription**, or at <https://play.google.com/store/account/subscriptions>.
+- **Uninstalling the app or deleting your HeartPurse account does not cancel your subscription.** You must cancel in Google Play.
 - After you cancel, you keep paid features **until the end of the period you already paid for**, and you will not be charged again.
 - A prepaid plan has nothing to cancel: it simply ends at the end of the month you paid for.
 
@@ -99,20 +99,20 @@ Each offer shows its price, length and what you pay afterwards in Google Play be
 
 ## 4. Health disclaimer — please read
 
-- **RaphAi is a general wellness and fitness app. It is not a medical device** and does not diagnose, treat, cure or prevent any disease.
-- Calorie targets, body-fat %, step and calorie counts, heart-rate figures, sleep figures, **RaphScore, daily priorities, life patterns and the daily brief** are **estimates and suggestions** made by general formulas and fixed rules from the data you or your devices provide. They may be wrong.
+- **HeartPurse is a general wellness and fitness app. It is not a medical device** and does not diagnose, treat, cure or prevent any disease.
+- Calorie targets, body-fat %, step and calorie counts, heart-rate figures, sleep figures, **HeartScore, daily priorities, life patterns and the daily brief** are **estimates and suggestions** made by general formulas and fixed rules from the data you or your devices provide. They may be wrong.
 - **Talk to a qualified doctor** before starting a new diet, exercise or weight-loss plan — especially if you are pregnant, breastfeeding, have a medical condition (such as diabetes, heart, kidney or eating disorders) or take medicine.
-- **Do not ignore or delay medical advice** because of something in RaphAi.
-- **In an emergency, call 112 or go to the nearest hospital.** RaphAi cannot help in an emergency.
+- **Do not ignore or delay medical advice** because of something in HeartPurse.
+- **In an emergency, call 112 or go to the nearest hospital.** HeartPurse cannot help in an emergency.
 - If you feel very low or are thinking about harming yourself, please reach out to someone you trust, or call the **Tele-MANAS mental health helpline at 14416** (free, 24×7, India).
 - Exercise carries a risk of injury. You take part in any activity at your own risk.
 
 ## 5. Money disclaimer
 
-- RaphAi's expense tracker, budgets, savings goals, bill reminders, bill split and SIP/EMI calculators are **tools to organise your own money**.
-- They are **not investment, tax, legal, credit or financial advice**. RaphAi is not registered with SEBI, RBI or IRDAI.
+- HeartPurse's expense tracker, budgets, savings goals, bill reminders, bill split and SIP/EMI calculators are **tools to organise your own money**.
+- They are **not investment, tax, legal, credit or financial advice**. HeartPurse is not registered with SEBI, RBI or IRDAI.
 - Calculator results are **illustrations based on the numbers you enter**. Real returns, interest and charges will differ. Mutual fund investments are subject to market risks.
-- RaphAi does **not** move money, make payments, connect to your bank, or offer loans.
+- HeartPurse does **not** move money, make payments, connect to your bank, or offer loans.
 
 ## 6. Coach, insights and AI
 
@@ -128,7 +128,7 @@ Each offer shows its price, length and what you pay afterwards in Google Play be
 
 You agree **not** to:
 
-- break any law, or use RaphAi for anything illegal or fraudulent;
+- break any law, or use HeartPurse for anything illegal or fraudulent;
 - hack, reverse-engineer, decompile, scrape, overload or interfere with the app or servers (except as the law allows);
 - try to access other people's accounts or data;
 - use bots or automated tools to access the Service;
@@ -139,14 +139,14 @@ You agree **not** to:
 
 ## 8. Your content
 
-- "**Your content**" means what you enter in RaphAi, such as food logs, notes, custom foods, expenses and the questions you ask the Coach (Coach questions are processed to answer and not stored).
+- "**Your content**" means what you enter in HeartPurse, such as food logs, notes, custom foods, expenses and the questions you ask the Coach (Coach questions are processed to answer and not stored).
 - **You own your content.** You give us a limited permission to store, process and show it **only to provide the Service to you**, as our Privacy Policy explains. This ends when you delete the content or your account (except copies the law makes us keep).
 - You are responsible for your content. Do not enter anything illegal or that breaks someone else's rights.
-- Your content is private to you. RaphAi is not a platform for publishing content to other users.
+- Your content is private to you. HeartPurse is not a platform for publishing content to other users.
 
 ## 9. Our intellectual property
 
-- The RaphAi name, logo, app, design, software, text, food database and other materials (except your content) belong to RaphAi or its licensors.
+- The HeartPurse name, logo, app, design, software, text, food database and other materials (except your content) belong to HeartPurse or its licensors.
 - We give you a **personal, non-exclusive, non-transferable, revocable licence** to use the app on your own devices for your own non-commercial use, under these Terms.
 - Do not use our name or logo without written permission.
 - If you send us ideas or feedback, we may use them freely without paying you.
@@ -160,35 +160,35 @@ You agree **not** to:
 
 ## 11. Third-party services
 
-RaphAi works with services we do not control, such as Google Play, Android Health Connect, wearable apps (for example Fitbit, Samsung Health, Garmin) and Google services. Their own terms and privacy policies apply. We are not responsible for their availability, accuracy or actions.
+HeartPurse works with services we do not control, such as Google Play, Android Health Connect, wearable apps (for example Fitbit, Samsung Health, Garmin) and Google services. Their own terms and privacy policies apply. We are not responsible for their availability, accuracy or actions.
 
 ## 12. Availability and changes to the Service
 
-- We work hard to keep RaphAi running, but we cannot promise it will always be available or error-free, or that data will never be lost. Please export your data regularly (**You → Privacy Centre → Export my data**).
+- We work hard to keep HeartPurse running, but we cannot promise it will always be available or error-free, or that data will never be lost. Please export your data regularly (**You → Privacy Centre → Export my data**).
 - We may update, change or pause features. If we **stop the whole Service**, we will give you at least **30 days' notice** where possible, a chance to export your data, and a **pro-rata refund** of any unused paid period.
 
 ## 13. Suspension and termination
 
-- **You** can stop using RaphAi and delete your account at any time. Remember to cancel your Google Play subscription separately.
+- **You** can stop using HeartPurse and delete your account at any time. Remember to cancel your Google Play subscription separately.
 - **We** may suspend or close your account if you break these Terms, misuse the Service, create legal risk for us or others, or if the law requires. Where reasonable, we will warn you first and tell you why.
 - If we close your account because you broke these Terms, refunds are only as Google Play's policy or the law requires.
 - Sections that should continue after termination (disclaimers, limits of liability, indemnity, governing law) will continue.
 
 ## 14. Disclaimer of warranties
 
-To the extent the law allows, RaphAi is provided **"as is" and "as available"**, without warranties of any kind, including fitness for a particular purpose, accuracy or non-infringement. We do not guarantee any health, fitness, weight or financial result. This does not limit the protection of your data that we promise in the Privacy Policy, or your rights under consumer law.
+To the extent the law allows, HeartPurse is provided **"as is" and "as available"**, without warranties of any kind, including fitness for a particular purpose, accuracy or non-infringement. We do not guarantee any health, fitness, weight or financial result. This does not limit the protection of your data that we promise in the Privacy Policy, or your rights under consumer law.
 
 ## 15. Limitation of liability
 
 To the fullest extent the law allows:
 
-- RaphAi and its owner will **not be liable** for indirect, incidental, special, consequential or punitive loss, or for loss of profits, opportunities or health outcomes, arising from your use of (or inability to use) the Service.
+- HeartPurse and its owner will **not be liable** for indirect, incidental, special, consequential or punitive loss, or for loss of profits, opportunities or health outcomes, arising from your use of (or inability to use) the Service.
 - Our **total liability** to you for any claim about the Service is limited to **the fees you paid us in the 12 months before the claim, or ₹1,000, whichever is higher**.
 - **Nothing in these Terms limits** liability that Indian law does not allow to be limited — including for fraud, for our own wilful misconduct, for compensation under **section 43A of the IT Act** or the **DPDP Act** for failing to protect your data, or your rights as a consumer under the **Consumer Protection Act, 2019**.
 
 ## 16. Indemnity
 
-You agree to compensate RaphAi and its owner for claims, losses and reasonable legal costs that arise because you broke these Terms or the law, or infringed someone else's rights, while using RaphAi. This does not apply to the extent the loss was caused by our own fault.
+You agree to compensate HeartPurse and its owner for claims, losses and reasonable legal costs that arise because you broke these Terms or the law, or infringed someone else's rights, while using HeartPurse. This does not apply to the extent the loss was caused by our own fault.
 
 ## 17. Complaints and Grievance Officer
 
@@ -198,7 +198,7 @@ Our Grievance Officer handles complaints about the Service, billing and your dat
 - **Email:** [SUPPORT EMAIL]
 - **Post:** [POSTAL ADDRESS], Andhra Pradesh, India
 
-We **acknowledge every complaint within 48 hours** and **resolve it within 30 days** of receipt. This follows the Consumer Protection (E-Commerce) Rules, 2020 (acknowledge in 48 hours, redress in one month), the SPDI Rules, 2011 (one month) and the DPDP Rules, 2025 (at most 90 days). If any part of RaphAi is treated as an intermediary, content complaints under the IT (Intermediary Guidelines and Digital Media Ethics Code) Rules, 2021 will be acknowledged within 24 hours and resolved within 15 days.
+We **acknowledge every complaint within 48 hours** and **resolve it within 30 days** of receipt. This follows the Consumer Protection (E-Commerce) Rules, 2020 (acknowledge in 48 hours, redress in one month), the SPDI Rules, 2011 (one month) and the DPDP Rules, 2025 (at most 90 days). If any part of HeartPurse is treated as an intermediary, content complaints under the IT (Intermediary Guidelines and Digital Media Ethics Code) Rules, 2021 will be acknowledged within 24 hours and resolved within 15 days.
 
 You can also contact the **National Consumer Helpline** (1915 or <https://consumerhelpline.gov.in>) or, for data protection issues, the **Data Protection Board of India**.
 
@@ -211,18 +211,18 @@ You can also contact the **National Consumer Helpline** (1915 or <https://consum
 
 ## 19. Changes to these Terms
 
-We may update these Terms. We will change the "Last updated" date and version. For important changes we will tell you in the app or by email **before** they take effect. If you keep using RaphAi after that, you accept the new Terms. If you do not agree, stop using RaphAi, cancel your subscription and delete your account.
+We may update these Terms. We will change the "Last updated" date and version. For important changes we will tell you in the app or by email **before** they take effect. If you keep using HeartPurse after that, you accept the new Terms. If you do not agree, stop using HeartPurse, cancel your subscription and delete your account.
 
 ## 20. General
 
-- **Whole agreement:** these Terms and our Privacy Policy are the full agreement between you and RaphAi about the Service.
+- **Whole agreement:** these Terms and our Privacy Policy are the full agreement between you and HeartPurse about the Service.
 - **Severability:** if any part is found invalid, the rest stays in force.
 - **No waiver:** if we do not enforce a right straight away, we do not give it up.
-- **Transfer:** you may not transfer your rights. We may transfer ours in a merger, sale or reorganisation of the business (for example, if RaphAi becomes a company), and your rights and data protections stay the same.
+- **Transfer:** you may not transfer your rights. We may transfer ours in a merger, sale or reorganisation of the business (for example, if HeartPurse becomes a company), and your rights and data protections stay the same.
 - **Language:** if these Terms are translated, the English version applies if there is a conflict.
 
 ## 21. Contact us
 
-**RaphAi** — Shalem Raj Rooppa (sole proprietorship)
+**HeartPurse** — Shalem Raj Rooppa (sole proprietorship)
 Email: [SUPPORT EMAIL]
 Post: [POSTAL ADDRESS], Andhra Pradesh, India

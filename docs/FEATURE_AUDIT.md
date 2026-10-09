@@ -19,7 +19,7 @@ Evidence: `test/smoke.js` (304 checks), `test/security.js` (73 checks), code rea
 | Wealth | Bank-notification capture | M | Placeholder screen |
 | Wealth | Bill split | P | Phone-only (AsyncStorage) |
 | Home | Dashboard, streaks | W | |
-| Insights | RaphScore (6 areas), priorities, trends, patterns, brief, profile | W | Rule-based |
+| Insights | HeartScore (6 areas), priorities, trends, patterns, brief, profile | W | Rule-based |
 | Coach | Rule-based coach + daily limits | W | |
 | Coach | Gemini AI coach | P | Scaffold + tools + guardrails tested with fake API; no key in prod |
 | Billing | Plans endpoint, trial | W | |

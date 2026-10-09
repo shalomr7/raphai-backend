@@ -1,6 +1,6 @@
-# RaphAi Backend
+# HeartPurse Backend
 
-RaphAi helps people in India track their **health** (food, steps, workouts, water, sleep, mood, weight) and their **wealth** (spending, budgets, savings, bills) in one app. Money is in rupees (₹).
+HeartPurse helps people in India track their **health** (food, steps, workouts, water, sleep, mood, weight) and their **wealth** (spending, budgets, savings, bills) in one app. Money is in rupees (₹).
 
 This folder is the **backend**: the server the phone app talks to. It saves data and does the maths.
 
@@ -27,7 +27,7 @@ You should see:
 
 ```
 Database ready (tables checked, foods seeded)
-RaphAi API running on http://localhost:4000
+HeartPurse API running on http://localhost:4000
 ```
 
 The server makes all the tables and adds the 48 foods by itself when it starts.
@@ -76,8 +76,8 @@ raphai-backend/
 │   ├── services/
 │   │   ├── googlePlay.js Google Play Billing: asks Google for a purchase's state, saves it, sets the plan
 │   │   ├── summary.js    Adds up a user's day (health) and month (money), and works out the scores
-│   │   ├── streaks.js    Logging streak and RaphScore streak
-│   │   ├── intelligence.js  RaphAi Intelligence: 6-area RaphScore, priorities, nutrition safety,
+│   │   ├── streaks.js    Logging streak and HeartScore streak
+│   │   ├── intelligence.js  HeartPurse Intelligence: 6-area HeartScore, priorities, nutrition safety,
 │   │   │                    hydration advice, budget left, trends, Life Graph patterns, brief
 │   │   └── foodParser.js    Reads "2 rotis and half katori dal" and finds the foods
 │   └── routes/           One file per part of the API
@@ -91,7 +91,7 @@ raphai-backend/
 │       ├── wealth.js     Expenses, budgets, savings goals, bills, SIP and EMI calculators
 │       ├── subscription.js  Plans, subscription, trial, cancel, dev-activate
 │       ├── googlePlay.js    Google Play Billing: /api/subscription/google/verify and /rtdn
-│       ├── dashboard.js  The home screen data, RaphScore and streaks
+│       ├── dashboard.js  The home screen data, HeartScore and streaks
 │       ├── export.js     GET /api/export: all your data as JSON
 │       ├── insights.js   /api/insights/today, trends, patterns, brief, profile
 │       ├── food.js       POST /api/food/parse (food from a sentence)
@@ -142,7 +142,7 @@ raphai-backend/
 - **50/30/20**: 50% needs, 30% wants, 20% savings
 - `Investment` expenses count as saving, not spending
 
-**RaphScore (0 to 100)** = (Health score + Wealth score) ÷ 2
+**HeartScore (0 to 100)** = (Health score + Wealth score) ÷ 2
 - Health score is the average of 5 parts for today. **Calories**: 100 if you are within ±10% of your target. **Protein** and **water**: % of target. **Steps**: % of your step goal (8,000 by default). **Sleep**: 100 for 7 to 9 hours
 - Wealth score is the average of 3 parts for this month. **Savings rate**: saving 20% or more of income scores 100. **Bills paid**: % of this month's bills due so far that are paid. **Budget adherence**: % of your budgets not overspent (if you set no budgets, spending up to 80% of income scores 100)
 
@@ -197,7 +197,7 @@ curl -X PUT http://localhost:4000/api/profile -H "Authorization: Bearer $T" -H "
   -d '{"sex":"male","age":30,"height_cm":175,"weight_kg":75,"activity_factor":1.55,"goal":"lose","pace_kg_week":0.5,"income":60000,"neck_cm":38,"waist_cm":86}'
 ```
 
-The profile fields are: `sex` (male/female), `age` (18 to 100; RaphAi is for adults only), `height_cm`, `weight_kg`, `activity_factor` (1.2 to 1.9), `goal` (lose/maintain/gain), `pace_kg_week` (0 to 1), `income` (₹ per month), and these optional ones: `neck_cm`, `waist_cm`, `hip_cm`, `step_goal`.
+The profile fields are: `sex` (male/female), `age` (18 to 100; HeartPurse is for adults only), `height_cm`, `weight_kg`, `activity_factor` (1.2 to 1.9), `goal` (lose/maintain/gain), `pace_kg_week` (0 to 1), `income` (₹ per month), and these optional ones: `neck_cm`, `waist_cm`, `hip_cm`, `step_goal`.
 
 ### Health
 | Method | URL | What it does |
@@ -331,7 +331,7 @@ After the daily AI allowance the coach answers with its rules instead of blockin
 3. Only when the server says `valid: true` does the app acknowledge (finish) the purchase. Google refunds purchases that are not acknowledged within 3 days, so the app also re-checks unfinished purchases each time the Upgrade screen opens.
 4. Google then tells the server about renewals, cancellations, expiries, payment problems and refunds through **Real-time Developer Notifications** (Pub/Sub push to `/api/subscription/google/rtdn?secret=...`). For every message the server asks Google again for the latest state.
 
-Safety rules: one purchase token can only be linked to one RaphAi account (409 otherwise); the app passes a hashed account id (`play_account_id` from `GET /api/subscription`) when buying, and the server rejects a token bought from another account; a refunded/revoked token never gives access again. Access is given for the states ACTIVE, CANCELED (until the paid time ends) and IN_GRACE_PERIOD, and only while the expiry is in the future, so plans end on time even if a notification is missed. When a Google plan looks expired, `GET /api/subscription` asks Google once more before switching to Free.
+Safety rules: one purchase token can only be linked to one HeartPurse account (409 otherwise); the app passes a hashed account id (`play_account_id` from `GET /api/subscription`) when buying, and the server rejects a token bought from another account; a refunded/revoked token never gives access again. Access is given for the states ACTIVE, CANCELED (until the paid time ends) and IN_GRACE_PERIOD, and only while the expiry is in the future, so plans end on time even if a notification is missed. When a Google plan looks expired, `GET /api/subscription` asks Google once more before switching to Free.
 
 Without the Google settings, verify answers **503 "Google Play billing is not configured"**. The smoke test replaces Google with a fake, so it checks all of this without a Play Console. The step-by-step setup for the Play Console, Google Cloud and Pub/Sub is in the separate owner checklist (`raphai-play-billing-setup.md`).
 
@@ -341,11 +341,11 @@ Without the Google settings, verify answers **503 "Google Play billing is not co
 ### Dashboard and coach
 | Method | URL | What it does |
 |---|---|---|
-| GET | `/api/dashboard?date=` | Home screen: RaphScore, **streaks**, health and wealth summaries |
+| GET | `/api/dashboard?date=` | Home screen: HeartScore, **streaks**, health and wealth summaries |
 | GET | `/api/dashboard/streaks` | Just the streaks |
 | POST | `/api/coach` | **Free: 5/day; paid: unlimited + daily AI allowance.** `{ "question": "What should I do today?", "context"?: "home\|health\|fitness\|wealth" }` |
 
-**Streaks** (`src/services/streaks.js`): `logging.days` = days in a row you logged anything (food, water, steps, workout, sleep, mood, weight or expense). `raph_score.days` = days in a row your RaphScore was 60 or more. If today has nothing yet, the streak counts up to yesterday (`today_done: false`).
+**Streaks** (`src/services/streaks.js`): `logging.days` = days in a row you logged anything (food, water, steps, workout, sleep, mood, weight or expense). `raph_score.days` = days in a row your HeartScore was 60 or more. If today has nothing yet, the streak counts up to yesterday (`today_done: false`).
 
 **The coach** answers from your real numbers, in a warm, simple tone. It understands: **what should I do today**, **why are my steps low**, **how can I save more this month**, **optimise my day**, **today's nutrition**, **fat loss / belly fat**, **sleep**, **mood support** (sad, stressed, anxious; for distress it always gives **Tele-MANAS 14416** and 112), plus the older **calories left**, **food spend**, **how much to save** and **protein foods**. If it does not understand a question, `context` picks a helpful answer for that screen (home → today's plan, health → nutrition, fitness → steps, wealth → saving). The answer is `{ topic, answer, data, context, guessed_from_context, engine, plan, remaining_today, ai }`.
 
@@ -355,12 +355,12 @@ curl -X POST http://localhost:4000/api/coach -H "Authorization: Bearer $T" -H "C
 # -> { "topic": "food_spend", "answer": "This month you spent ₹3,700 on food (...)" }
 ```
 
-### RaphAi Intelligence
+### HeartPurse Intelligence
 Rule-based (no outside AI), but every answer comes from your own data. **Missing data is never shown as 0**: it is `null` with `status: "no_data"` and a "Start tracking ..." note.
 
 | Method | URL | Plan | What it does |
 |---|---|---|---|
-| GET | `/api/insights/today` | Free + Pro | RaphScore with 6 areas and why it changed vs yesterday, top 3 priorities, one insight, nutrition safety, hydration advice, budget left |
+| GET | `/api/insights/today` | Free + Pro | HeartScore with 6 areas and why it changed vs yesterday, top 3 priorities, one insight, nutrition safety, hydration advice, budget left |
 | GET | `/api/insights/trends?days=7` | Free: 7, Pro: 7 or 30 | Daily series (steps, sleep_min, mood, water_ml, spend, weight, kcal), averages vs the period before, and plain-English insights. `days=30` on Free → 402 |
 | GET | `/api/insights/patterns` | Pro (Free gets `{ "locked": true }`) | "Life Graph": sleep ↔ spending, exercise ↔ mood, sleep ↔ mood, weekend share of spending, food delivery after poor sleep |
 | GET | `/api/insights/brief` | Pro (Free gets `{ "locked": true }`) | Daily briefing: health, fitness and money sections + one priority |
@@ -370,7 +370,7 @@ Rule-based (no outside AI), but every answer comes from your own data. **Missing
 | GET | `/api/activity/daily?days=7` | Free + Pro | The last N days (1 to 90) as an array |
 | POST | `/api/health/sleep/import` | Free + Pro | `{ "date", "minutes": 438, "source": "health_connect" }`. Saves the night's sleep unless you typed it in by hand for that date (`imported: false` then) |
 
-**RaphScore (v2, in `/api/insights/today`)** has 6 areas: **Health** (calories and protein vs your targets, water), **Fitness** (steps vs your goal, plus workouts), **Mind** (mood), **Wealth** (savings rate after bills, bills paid, budgets kept), **Habits** (how many of the last 7 days you logged, and how many kinds of things), **Recovery** (sleep hours and quality, resting heart rate). Today's numbers are compared with how much of the day has passed (Indian time), so a morning is not scored like a full day. The overall score is the weighted average of the areas that have data (weights: health 0.2, fitness 0.2, mind 0.15, wealth 0.2, habits 0.1, recovery 0.15), and it is `null` when fewer than 2 areas have data. Labels: 70+ Good, 45+ Okay, below 45 Needs care. Today's and yesterday's scores are saved in the table `raphscore_daily`, and the `explanation` says which areas moved. (The older `/api/dashboard` RaphScore is unchanged.)
+**HeartScore (v2, in `/api/insights/today`)** has 6 areas: **Health** (calories and protein vs your targets, water), **Fitness** (steps vs your goal, plus workouts), **Mind** (mood), **Wealth** (savings rate after bills, bills paid, budgets kept), **Habits** (how many of the last 7 days you logged, and how many kinds of things), **Recovery** (sleep hours and quality, resting heart rate). Today's numbers are compared with how much of the day has passed (Indian time), so a morning is not scored like a full day. The overall score is the weighted average of the areas that have data (weights: health 0.2, fitness 0.2, mind 0.15, wealth 0.2, habits 0.1, recovery 0.15), and it is `null` when fewer than 2 areas have data. Labels: 70+ Good, 45+ Okay, below 45 Needs care. Today's and yesterday's scores are saved in the table `raphscore_daily`, and the `explanation` says which areas moved. (The older `/api/dashboard` HeartScore is unchanged.)
 
 **Nutrition safety:** deficit = TDEE − your calorie target. More than 25% of TDEE is `aggressive`, more than 35% is `very_aggressive`, with a kind message and a gentler `suggested_target` that is never below 1,200 kcal (women) or 1,500 kcal (men).
 
@@ -412,7 +412,7 @@ import * as Notifications from 'expo-notifications';
 
 const API = 'http://192.168.1.10:4000'; // your computer's IP, not localhost
 
-// 1) Send today's steps to RaphAi
+// 1) Send today's steps to HeartPurse
 export async function syncSteps(token) {
   const ok = await Pedometer.isAvailableAsync();
   if (!ok) return;
@@ -435,7 +435,7 @@ export async function scheduleSitReminders(token) {
   if (!reminders.enabled) return;
 
   await Notifications.scheduleNotificationAsync({
-    content: { title: 'RaphAi', body: 'You have been sitting a while. Stand up and stretch! 🚶' },
+    content: { title: 'HeartPurse', body: 'You have been sitting a while. Stand up and stretch! 🚶' },
     trigger: { type: 'timeInterval', seconds: reminders.interval_min * 60, repeats: true },
   });
 }
@@ -481,7 +481,7 @@ You do **not** need to make any tables. The server makes them by itself the firs
 cd raphai-backend
 git init                      # skip this if the .git folder is already there
 git add .
-git commit -m "RaphAi backend"
+git commit -m "HeartPurse backend"
 # make an EMPTY repo on github.com (no README), then:
 git remote add origin https://github.com/YOUR-NAME/raphai-backend.git
 git branch -M main
@@ -500,7 +500,7 @@ database files are **not** uploaded.
 4. Render asks for **DATABASE_URL**. Paste the Supabase Session pooler string from Step 1.
 5. Click **Apply** (or **Deploy Blueprint**). `JWT_SECRET` is made for you (a long random value).
    `NODE_ENV=production`, `APP_TZ=Asia/Kolkata` and `CORS_ORIGIN=*` come from `render.yaml`.
-6. Wait for the build to finish. In **Logs** you should see `Database ready` and `RaphAi API running`.
+6. Wait for the build to finish. In **Logs** you should see `Database ready` and `HeartPurse API running`.
 7. Open `https://YOUR-SERVICE.onrender.com/api/health-check`. You should see `{"ok":true,...}`.
 
 Give this address to the phone app as its API address.

@@ -1,6 +1,6 @@
 // services/intelligence.js
 // ------------------------------------------------------------
-// The RaphAi "intelligence layer". Rule-based (no AI model), but it uses
+// The HeartPurse "intelligence layer". Rule-based (no AI model), but it uses
 // the user's own numbers: profile, food, water, sleep, mood, weight,
 // steps, workouts, expenses, budgets and bills.
 //
@@ -168,7 +168,7 @@ function monthMoney(ctx, D) {
 }
 
 // ------------------------------------------------------------
-// RaphScore areas for one date. isToday = the day is not over yet.
+// HeartScore areas for one date. isToday = the day is not over yet.
 // Every area returns { score (0..100 or null), status, note }.
 // ------------------------------------------------------------
 function areaHealth(ctx, D, frac) {
@@ -310,8 +310,8 @@ function computeScore(ctx, D, { isToday, hour }) {
 // Why did the score change vs yesterday? (plain words)
 function explainChange(todayS, yesterdayS) {
   const t = todayS.overall; const y = yesterdayS ? yesterdayS.overall : null;
-  if (t == null) return { delta: null, explanation: 'Track at least two areas today (for example food and sleep) to get your RaphScore.' };
-  if (y == null) return { delta: null, explanation: "This is your first RaphScore. Come back tomorrow and I'll explain how it changed." };
+  if (t == null) return { delta: null, explanation: 'Track at least two areas today (for example food and sleep) to get your HeartScore.' };
+  if (y == null) return { delta: null, explanation: "This is your first HeartScore. Come back tomorrow and I'll explain how it changed." };
   const delta = t - y;
   const changes = AREAS
     .filter((a) => todayS.scores[a.key] != null && yesterdayS.scores[a.key] != null)
@@ -705,7 +705,7 @@ async function brief(userId, { hour = hourNow(), date = today() } = {}) {
     else if (top.key === 'sleep') priority = 'Aim to be in bed by 10:30 PM tonight.';
     else if (top.key === 'spend') priority = 'Keep today a low-spend day: skip one non-essential purchase.';
   }
-  return { date, title: "Here's your RaphAi briefing", raphscore: ins.raphscore.overall, sections, priority };
+  return { date, title: "Here's your HeartPurse briefing", raphscore: ins.raphscore.overall, sections, priority };
 }
 
 // ------------------------------------------------------------

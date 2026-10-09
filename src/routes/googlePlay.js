@@ -68,7 +68,7 @@ googleSubRouter.post('/verify', asyncHandler(async (req, res) => {
   // Quick check before calling Google: is this token someone else's?
   const existing = await db.get('SELECT user_id FROM google_play_purchases WHERE purchase_token = $1', [b.purchaseToken]);
   if (existing && existing.user_id && Number(existing.user_id) !== Number(userId)) {
-    throw new HttpError(409, 'This Google Play purchase is already linked to another RaphAi account.');
+    throw new HttpError(409, 'This Google Play purchase is already linked to another HeartPurse account.');
   }
 
   let raw;
@@ -89,7 +89,7 @@ googleSubRouter.post('/verify', asyncHandler(async (req, res) => {
   // The app passes a hashed account id when buying. If Google returns one,
   // it must be THIS user's (stops one person's purchase unlocking another account).
   if (m.accountId && m.accountId !== play.playAccountId(userId)) {
-    throw new HttpError(409, 'This Google Play purchase was made from a different RaphAi account.');
+    throw new HttpError(409, 'This Google Play purchase was made from a different HeartPurse account.');
   }
 
   await play.storeAndRecompute(b.purchaseToken, m, raw, userId);

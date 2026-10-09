@@ -25,7 +25,7 @@ function legalPage(file, title) {
   });
 }
 
-router.get('/privacy', legalPage('privacy-policy.md', 'RaphAi Privacy Policy'));
-router.get('/terms', legalPage('terms-and-conditions.md', 'RaphAi Terms & Conditions'));
+router.get('/privacy', legalPage('privacy-policy.md', 'HeartPurse Privacy Policy'));
+router.get('/terms', legalPage('terms-and-conditions.md', 'HeartPurse Terms & Conditions'));
 
 module.exports = router;

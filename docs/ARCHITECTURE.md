@@ -5,7 +5,7 @@
 - **Request path**: helmet -> CORS -> per-IP limit -> JSON (100 kb) -> route (requireAuth -> per-route limits -> validate() allow-list -> SQL with `user_id = $n`).
 - **Migrations**: `src/migrations/` run by `db.init()` on every start (advisory lock, one transaction, recorded in `schema_migrations`).
 - **AI**: `src/ai/` — tool registry (user-scoped, read-only + propose/confirm), guardrails, Gemini REST client, provider wired to `services/aiCoach.setAiProvider` when `GEMINI_API_KEY` is set; else rule-based.
-- **Key modules**: `services/intelligence.js` (RaphScore/insights), `services/googlePlay.js`, `services/account.js` (deletion), `services/securityLog.js`.
+- **Key modules**: `services/intelligence.js` (HeartScore/insights), `services/googlePlay.js`, `services/account.js` (deletion), `services/securityLog.js`.
 ## Roadmap (Android beta first)
 | Phase | Scope | Status |
 |---|---|---|

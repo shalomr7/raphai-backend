@@ -99,7 +99,7 @@ async function run() {
   const M = thisMonth();
 
   console.log('\nPublic legal pages');
-  for (const [url, heading] of [['/privacy', 'RaphAi Privacy Policy'], ['/terms', 'RaphAi Terms &amp; Conditions']]) {
+  for (const [url, heading] of [['/privacy', 'HeartPurse Privacy Policy'], ['/terms', 'HeartPurse Terms &amp; Conditions']]) {
     const res = await fetch(base + url);
     const html = await res.text();
     check(`GET ${url} -> 200 text/html (no login)`, res.status === 200 && /^text\/html/.test(res.headers.get('content-type') || ''), { status: res.status, type: res.headers.get('content-type') });
@@ -335,11 +335,11 @@ async function run() {
   console.log('\nDashboard');
   r = await api('GET', '/api/dashboard');
   const s = r.body.raph_score && r.body.raph_score.score;
-  check('RaphScore between 0 and 100', r.status === 200 && s >= 0 && s <= 100, r.body);
-  console.log(`      -> RaphScore ${s} (${r.body.raph_score.label}); health ${r.body.health.score}, wealth ${r.body.wealth.score}`);
+  check('HeartScore between 0 and 100', r.status === 200 && s >= 0 && s <= 100, r.body);
+  console.log(`      -> HeartScore ${s} (${r.body.raph_score.label}); health ${r.body.health.score}, wealth ${r.body.wealth.score}`);
   const st = r.body.streaks;
   check('streaks: logged today and yesterday = 2 days', st && st.logging.days === 2 && st.logging.today_done === true, st);
-  check('streaks: RaphScore streak is a number', typeof st.raph_score.days === 'number' && st.raph_score.min_score === 60, st);
+  check('streaks: HeartScore streak is a number', typeof st.raph_score.days === 'number' && st.raph_score.min_score === 60, st);
   r = await api('GET', '/api/dashboard/streaks');
   check('GET /api/dashboard/streaks', r.status === 200 && r.body.streaks.logging.days === 2, r.body);
 
@@ -551,7 +551,7 @@ async function run() {
   token = mainToken;
 
   // =====================================================================
-  //  RaphAi Intelligence (v2)
+  //  HeartPurse Intelligence (v2)
   // =====================================================================
   await intelligenceTests({ D, mainToken });
   token = mainToken;
@@ -582,7 +582,7 @@ async function run() {
 }
 
 // ---------------------------------------------------------------------
-// RaphAi Intelligence tests: insights, trends, patterns, brief, profile,
+// HeartPurse Intelligence tests: insights, trends, patterns, brief, profile,
 // food parse, activity, sleep import, coach intents, Free vs Pro gating.
 // ---------------------------------------------------------------------
 const intel = require('../src/services/intelligence');
@@ -605,7 +605,7 @@ async function newUser(name, email) {
 const show = (label, v) => { if (process.env.SMOKE_SHOW) console.log(`      -> ${label}:`, JSON.stringify(v, null, 1)); };
 
 async function intelligenceTests({ D, mainToken }) {
-  console.log('\nRaphAi Intelligence: nutrition safety rules');
+  console.log('\nHeartPurse Intelligence: nutrition safety rules');
   let n = intel.nutritionSafety({ tdee: 2633, target: 2083, sex: 'male' });
   check('deficit 21% -> ok (no suggested target)', n.safety === 'ok' && n.deficit === 550 && n.deficit_pct === 21 && n.suggested_target === null, n);
   n = intel.nutritionSafety({ tdee: 2633, target: 1808, sex: 'male' });
@@ -619,7 +619,7 @@ async function intelligenceTests({ D, mainToken }) {
   n = intel.nutritionSafety({ tdee: 2200, target: 2500, sex: 'female' });
   check('surplus (gain) -> ok', n.safety === 'ok' && n.deficit === -300, n);
 
-  console.log('\nRaphAi Intelligence: hydration by time of day (Asia/Kolkata)');
+  console.log('\nHeartPurse Intelligence: hydration by time of day (Asia/Kolkata)');
   let h = intel.hydrationAdvice({ goal_ml: 2800, drunk_ml: 1600, hour: 15 });
   check('3 PM, 1.6 of 2.8 L -> behind 1200, advice before 5 PM', h.behind_ml === 1200 && /before 5 PM/.test(h.message), h);
   h = intel.hydrationAdvice({ goal_ml: 2800, drunk_ml: 200, hour: 9 });
@@ -633,7 +633,7 @@ async function intelligenceTests({ D, mainToken }) {
   h = intel.hydrationAdvice({ goal_ml: 2800, drunk_ml: 3000, hour: 18 });
   check('goal reached -> done', h.status === 'done', h);
 
-  console.log('\nRaphAi Intelligence: score maths');
+  console.log('\nHeartPurse Intelligence: score maths');
   check('overall null with fewer than 2 areas', intel.combineAreas({ health: 80, fitness: null, mind: null, wealth: null, habits: null, recovery: null }) === null);
   check('overall = renormalised weighted average', intel.combineAreas({ health: 80, fitness: null, mind: null, wealth: 60, habits: null, recovery: null }) === 70);
   const ex = intel.explainChange({ overall: 60, scores: { health: 50, fitness: 40, mind: 70, wealth: 80, habits: 90, recovery: 70 } },
@@ -642,7 +642,7 @@ async function intelligenceTests({ D, mainToken }) {
   const ex2 = intel.explainChange({ overall: 70, scores: { recovery: 90, mind: 70 } }, { overall: 64, scores: { recovery: 70, mind: 70 } });
   check('explanation for a rise', ex2.delta === 6 && /rose 6 points/.test(ex2.explanation) && /sleep/.test(ex2.explanation), ex2);
 
-  console.log('\nRaphAi Intelligence: empty-data user (Free) never gets fake zeros');
+  console.log('\nHeartPurse Intelligence: empty-data user (Free) never gets fake zeros');
   await newUser('Esha Rao', 'esha@example.com');
   let r = await api('GET', '/api/insights/today');
   check('GET /api/insights/today (empty) -> 200', r.status === 200 && r.body.name === 'Esha' && ['Good morning', 'Good afternoon', 'Good evening'].includes(r.body.greeting), r.body);
@@ -658,7 +658,7 @@ async function intelligenceTests({ D, mainToken }) {
     && Object.values(r.body.series).every((s) => s.every((p) => p.value === null)) && Object.values(r.body.summary).every((v) => v === null) && r.body.insights.length === 0, r.body);
   check('empty: no 0 anywhere in /trends', zeroPaths(r.body).length === 0, zeroPaths(r.body));
 
-  console.log('\nRaphAi Intelligence: Free vs Pro gating');
+  console.log('\nHeartPurse Intelligence: Free vs Pro gating');
   r = await api('GET', '/api/insights/trends?days=30');
   check('Free: 30-day trends -> 402, upgrade to Plus', r.status === 402 && r.body.upgrade_to === 'plus', r.body);
   r = await api('GET', '/api/insights/trends?days=14');
@@ -679,7 +679,7 @@ async function intelligenceTests({ D, mainToken }) {
   r = await api('GET', '/api/plans');
   const proFeatures = r.body.plans.find((p) => p.id === 'pro').features.join('|');
   const plusFeatures = r.body.plans.find((p) => p.id === 'plus').features.join('|');
-  check('plans: Pro lists the intelligence features', ['RaphAi Intelligence', 'Trends for 365 days', 'Your patterns', 'AI food parse (50 a day)'].every((f) => proFeatures.includes(f)), proFeatures);
+  check('plans: Pro lists the intelligence features', ['HeartPurse Intelligence', 'Trends for 365 days', 'Your patterns', 'AI food parse (50 a day)'].every((f) => proFeatures.includes(f)), proFeatures);
   check('plans: Plus lists patterns, brief, 30-day trends, no ads', ['Life patterns', 'Daily brief', 'Trends for 30 days', 'No ads', 'AI food parse (20 a day)'].every((f) => plusFeatures.includes(f)), plusFeatures);
   check('plans: Free lists AI food parse (5 a day)', r.body.plans.find((p) => p.id === 'free').features.join('|').includes('AI food parse (5 a day)'), r.body.plans[0]);
 
@@ -689,7 +689,7 @@ async function intelligenceTests({ D, mainToken }) {
   check('API nutrition: TDEE 1667, target 1200, aggressive, suggested >= 1200', r.body.nutrition && r.body.nutrition.tdee === 1667 && r.body.nutrition.target === 1200
     && r.body.nutrition.safety === 'aggressive' && r.body.nutrition.suggested_target >= 1200, r.body.nutrition);
 
-  console.log('\nRaphAi Intelligence: main user (Pro) with real data');
+  console.log('\nHeartPurse Intelligence: main user (Pro) with real data');
   token = mainToken;
   r = await api('GET', '/api/insights/today');
   const t = r.body;
@@ -721,7 +721,7 @@ async function intelligenceTests({ D, mainToken }) {
   r = await api('GET', '/api/insights/patterns');
   check('patterns: not enough data yet -> days_needed', r.status === 200 && r.body.enough_data === false && r.body.days_needed > 0 && r.body.patterns.length === 0, r.body);
 
-  console.log('\nRaphAi Intelligence: activity + sleep import');
+  console.log('\nHeartPurse Intelligence: activity + sleep import');
   r = await api('POST', '/api/activity/daily', { date: D, steps: 7200, distance_m: 5000, active_kcal: 300, active_minutes: 45, resting_hr: 64, source: 'health_connect' });
   check('POST /api/activity/daily upserts', r.status === 200 && r.body.steps === 7200 && r.body.resting_hr === 64, r.body);
   r = await api('POST', '/api/activity/daily', { date: D, steps: 7300, source: 'health_connect' });
@@ -741,7 +741,7 @@ async function intelligenceTests({ D, mainToken }) {
   r = await api('GET', `/api/health/sleep?date=${yday}`);
   check('sleep import again replaces (no duplicates)', r.body.entries.length === 1 && r.body.entries[0].hours === 7.5, r.body);
 
-  console.log('\nRaphAi Intelligence: food parser');
+  console.log('\nHeartPurse Intelligence: food parser');
   r = await api('POST', '/api/food/parse', { text: 'I ate 2 eggs, 2 rotis and a glass of milk' });
   const it = r.body.items || [];
   check('parse: 3 items found', r.status === 200 && it.length === 3 && it.every((i) => i.matched && i.food_id), r.body);
@@ -767,7 +767,7 @@ async function intelligenceTests({ D, mainToken }) {
   r = await api('POST', '/api/food/parse', {});
   check('parse: text required -> 400', r.status === 400, r.body);
 
-  console.log('\nRaphAi Intelligence: coach intents (Pro)');
+  console.log('\nHeartPurse Intelligence: coach intents (Pro)');
   const ask = async (question, context) => {
     const body = (await api('POST', '/api/coach', context ? { question, context } : { question })).body;
     show(`coach "${question}"`, body.answer);
@@ -801,7 +801,7 @@ async function intelligenceTests({ D, mainToken }) {
   r = await api('POST', '/api/coach', { question: 'hi', context: 'kitchen' });
   check('coach: bad context -> 400', r.status === 400, r.body);
 
-  console.log('\nRaphAi Intelligence: seeded 20-day user -> Life Graph patterns');
+  console.log('\nHeartPurse Intelligence: seeded 20-day user -> Life Graph patterns');
   const lata = await newUser('Lata', 'lata@example.com');
   await api('POST', '/api/subscription/trial');
   await api('PUT', '/api/profile', { sex: 'female', age: 28, height_cm: 158, weight_kg: 58, activity_factor: 1.375, goal: 'maintain', income: 40000, step_goal: 8000 });

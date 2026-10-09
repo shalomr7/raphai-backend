@@ -41,7 +41,7 @@ function page(title, bodyHtml) {
 <body>
 <main>
 ${bodyHtml}
-<footer>RaphAi &middot; <a href="/privacy">Privacy Policy</a> &middot; <a href="/terms">Terms &amp; Conditions</a> &middot; <a href="/delete-account">Delete account</a></footer>
+<footer>HeartPurse &middot; <a href="/privacy">Privacy Policy</a> &middot; <a href="/terms">Terms &amp; Conditions</a> &middot; <a href="/delete-account">Delete account</a></footer>
 </main>
 </body>
 </html>`;
