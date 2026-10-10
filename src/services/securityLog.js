@@ -10,7 +10,11 @@
 
 const db = require('../db');
 
-const EVENTS = ['login_success', 'login_failed', 'password_change', 'account_deleted', 'export', 'logout_all', 'password_reset_requested', 'password_reset'];
+const EVENTS = ['login_success', 'login_failed', 'password_change', 'account_deleted', 'export', 'logout_all', 'password_reset_requested', 'password_reset',
+  // Admin dashboard (routes/admin.js). actor_id = the admin, user_id = the customer concerned.
+  'admin_login_failed', 'admin_second_step_sent', 'admin_login_success', 'admin_denied', 'admin_view',
+  'admin_customer_list', 'admin_customer_search', 'admin_customer_view', 'admin_phone_reveal',
+  'admin_customer_csv', 'admin_user_export', 'admin_user_delete'];
 const RETENTION = '1 year';
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -24,11 +28,13 @@ function userAgent(req) {
 }
 
 // logSecurity('login_failed', { req, userId })  -> resolves, never throws
-async function logSecurity(event, { req, userId = null } = {}) {
+// Admin events also pass actorId (the admin) and a small detail object.
+async function logSecurity(event, { req, userId = null, actorId = null, detail = null } = {}) {
   if (!EVENTS.includes(event)) throw new Error(`Unknown security event: ${event}`);
+  const num = (v) => (v === null || v === undefined ? null : Number(v));
   try {
-    await db.run('INSERT INTO security_logs (user_id, event, ip, user_agent) VALUES ($1, $2, $3, $4)',
-      [userId === null || userId === undefined ? null : Number(userId), event, clientIp(req), userAgent(req)]);
+    await db.run('INSERT INTO security_logs (user_id, event, ip, user_agent, actor_id, detail) VALUES ($1, $2, $3, $4, $5, $6)',
+      [num(userId), event, clientIp(req), userAgent(req), num(actorId), detail ? JSON.stringify(detail) : null]);
   } catch (err) {
     console.error('Could not write security log:', err.code || err.message);
   }

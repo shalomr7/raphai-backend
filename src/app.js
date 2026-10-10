@@ -13,6 +13,7 @@ const { corsOptions, securityHeaders } = require('./middleware/security');
 const { rateLimit, byIp, byUser } = require('./middleware/rateLimit');
 const { requirePlan } = require('./middleware/requirePlan');
 const { notFound, errorHandler } = require('./middleware/errors');
+const { requestMetrics } = require('./middleware/requestMetrics');
 
 const authRoutes = require('./routes/auth');
 const { router: profileRoutes } = require('./routes/profile');
@@ -30,6 +31,8 @@ const foodRoutes = require('./routes/food');
 const activityRoutes = require('./routes/activity');
 const { router: consentRoutes } = require('./routes/consents');
 const { router: deleteAccountRoutes } = require('./routes/deleteAccount');
+const adminRoutes = require('./routes/admin');
+const adminPageRoutes = require('./routes/adminPage');
 
 function createApp() {
   const app = express();
@@ -41,6 +44,9 @@ function createApp() {
   // Security headers on every response (helmet: CSP, HSTS, nosniff, frame-deny ...)
   app.disable('x-powered-by');
   app.use(securityHeaders());
+
+  // Request counts / errors / latency per route pattern, in memory (admin "App health")
+  app.use(requestMetrics());
 
   // CORS: see middleware/security.js. In production only the origins listed
   // in CORS_ORIGIN may call the API from a browser ("*" is ignored there).
@@ -67,6 +73,10 @@ function createApp() {
   // Google Play Real-time Developer Notifications (Pub/Sub push). Public, but
   // protected by ?secret= (and optionally Pub/Sub's signed token).
   app.use('/api/subscription/google/rtdn', googleRtdnRouter);
+
+  // ---- Owner-only admin dashboard (own admin sign-in + second step; see admin/auth.js) ----
+  app.use('/admin', adminPageRoutes);
+  app.use('/api/admin', adminRoutes);
 
   // ---- Everything below needs a login token ----
   app.use('/api/profile', requireAuth, profileRoutes);

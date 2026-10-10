@@ -29,6 +29,11 @@ services:
         sync: false
       - key: EMAIL_FROM   # e.g. HeartPurse <no-reply@yourdomain.com> (verified in Resend)
         sync: false
+      # Owner admin dashboard (/admin). See docs/ADMIN.md.
+      - key: ADMIN_EMAILS
+        value: rooppashalemraju@gmail.com
+      - key: ADMIN_PASSWORD_HASH   # bcrypt hash of the extra admin password
+        sync: false
       # Gemini (server only). Unset = rule-based coach.
       - key: GEMINI_API_KEY
         sync: false

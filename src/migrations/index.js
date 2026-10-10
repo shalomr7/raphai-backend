@@ -156,6 +156,18 @@ const migrations = [
       END $p$;
     `,
   },
+
+  {
+    // Admin dashboard audit trail: who (actor_id = the admin's user id) did
+    // what to whom (user_id = the customer it concerns, if any), plus small
+    // non-sensitive details (section viewed, search length, reason given).
+    id: '008_admin_audit',
+    sql: `
+      ALTER TABLE security_logs ADD COLUMN IF NOT EXISTS actor_id INTEGER;
+      ALTER TABLE security_logs ADD COLUMN IF NOT EXISTS detail JSONB;
+      CREATE INDEX IF NOT EXISTS security_logs_event_created ON security_logs (event, created_at);
+    `,
+  },
 ];
 
 // Sanity: ids must be unique and sorted
