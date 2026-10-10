@@ -75,7 +75,13 @@ async function generate({
   try { data = await res.json(); } catch { data = null; }
   if (!res.ok) {
     const msg = data && data.error && data.error.status ? data.error.status : `HTTP ${res.status}`;
-    throw new GeminiError(`Gemini error: ${msg}`, res.status); // no body text: it can echo the prompt
+    // Request-validation errors (400) explain what was wrong with the request
+    // shape, not the user's text: keep a short, key-redacted hint for the logs.
+    let hint = '';
+    if (res.status === 400 && data && data.error && typeof data.error.message === 'string') {
+      hint = ` (${data.error.message.replace(/AIza[0-9A-Za-z_\-]{20,}|AQ\.[0-9A-Za-z_\-.]{20,}/g, '[key]').slice(0, 160)})`;
+    }
+    throw new GeminiError(`Gemini error: ${msg}${hint}`, res.status); // never the response body: it can echo the prompt
   }
 
   const cand = data && Array.isArray(data.candidates) ? data.candidates[0] : null;

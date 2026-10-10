@@ -94,7 +94,7 @@ async function tryAiAnswer({ userId, plan, question, context }) {
   try {
     answer = await provider({ userId, question, context, model: aiModelFor(plan), plan });
   } catch (e) {
-    console.warn('AI coach failed, using rule-based answer:', String(e.message || e).slice(0, 120));
+    console.warn('AI coach failed, using rule-based answer:', String(e.message || e).slice(0, 240));
     answer = null;
     failed = true;
   }

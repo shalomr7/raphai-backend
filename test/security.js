@@ -316,6 +316,10 @@ async function run() {
     r = await api('POST', '/api/coach', { question: q }, A.token);
     check(`not sent to the model: "${q}"`, r.body.engine === 'rule_based' && sent.length === 0, r.body);
   }
+  const decl = tools.declarations();
+  const badSchema = (sch) => !sch || Object.values(sch.properties || {}).some((x) => x.enum && x.type !== 'string');
+  check('tool declarations are Gemini-valid (no empty object params, enums only on strings)', decl.every((d) => d.parameters === undefined
+    || (Object.keys(d.parameters.properties || {}).length > 0 && !badSchema(d.parameters))), decl.map((d) => d.name));
   const g = require('../src/ai/guardrails');
   check('guardrails: echo of the system instruction is blocked', g.cleanAnswer(`Sure! ${g.SYSTEM_INSTRUCTION.slice(0, 200)}`) === null && g.answerViolation('Rules you must always follow: ...') === 'system_echo');
 

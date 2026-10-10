@@ -176,7 +176,7 @@ const TOOLS = {
   },
   getTrends: {
     description: 'Averages and day-by-day trends over the last 7 or 30 days (steps, sleep, calories, water, spending). Longer windows depend on the plan.',
-    parameters: { type: 'object', properties: { days: { type: 'integer', description: '7 or 30', enum: [7, 30] } } },
+    parameters: { type: 'object', properties: { days: { type: 'integer', description: 'Window in days: 7 or 30.' } } }, // Gemini enums must be strings; validate() enforces 7|30
     rules: { days: { type: 'integer', oneOf: [7, 30] } },
     async run(userId, a) {
       const want = a.days || 7;
@@ -227,8 +227,15 @@ const TOOLS = {
 const TOOL_NAMES = Object.keys(TOOLS);
 
 // Gemini "functionDeclarations"
+// Gemini rejects an OBJECT schema with no properties, so no-argument tools
+// are declared without "parameters".
 function declarations() {
-  return TOOL_NAMES.map((name) => ({ name, description: TOOLS[name].description, parameters: TOOLS[name].parameters }));
+  return TOOL_NAMES.map((name) => {
+    const p = TOOLS[name].parameters;
+    const d = { name, description: TOOLS[name].description };
+    if (p && p.properties && Object.keys(p.properties).length) d.parameters = p;
+    return d;
+  });
 }
 
 // Run one tool call for ONE user. Never throws: errors become { error }.
