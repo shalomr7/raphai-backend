@@ -38,7 +38,11 @@ const FEATURE_TIERS = {
 //  coach_per_day        rule-based coach questions (Free is blocked after this)
 //  ai_coach_per_day     Gemini coach answers. After this the coach does NOT
 //                       stop: it falls back to the rule-based coach.
-//  ai_coach_model       the model those answers would use
+//  ai_coach_model       the model those answers use by default (current models
+//                       open to NEW Gemini API projects, incl. the free tier:
+//                       Gemini 2.5 is limited to existing users). Override all
+//                       plans with GEMINI_MODEL, or one plan with
+//                       GEMINI_MODEL_PLUS / _PRO / _ELITE (see aiModelFor).
 //  food_parse_per_day   typed food parses ("2 rotis and dal")
 //  photo_scan_per_day   AI photo food scans (feature not built yet; config only)
 //  trend_days           longest /api/insights/trends window
@@ -49,15 +53,15 @@ const LIMITS = {
     food_parse_per_day: 5, photo_scan_per_day: 0, trend_days: 7, family_members: 1,
   },
   plus: {
-    budgets_per_month: null, savings_goals: null, coach_per_day: null, ai_coach_per_day: 5, ai_coach_model: 'gemini-2.5-flash-lite',
+    budgets_per_month: null, savings_goals: null, coach_per_day: null, ai_coach_per_day: 5, ai_coach_model: 'gemini-3.5-flash-lite',
     food_parse_per_day: 20, photo_scan_per_day: 0, trend_days: 30, family_members: 1,
   },
   pro: {
-    budgets_per_month: null, savings_goals: null, coach_per_day: null, ai_coach_per_day: 15, ai_coach_model: 'gemini-2.5-flash',
+    budgets_per_month: null, savings_goals: null, coach_per_day: null, ai_coach_per_day: 15, ai_coach_model: 'gemini-3.8-flash',
     food_parse_per_day: 50, photo_scan_per_day: 5, trend_days: 365, family_members: 1,
   },
   elite: {
-    budgets_per_month: null, savings_goals: null, coach_per_day: null, ai_coach_per_day: 25, ai_coach_model: 'gemini-2.5-flash',
+    budgets_per_month: null, savings_goals: null, coach_per_day: null, ai_coach_per_day: 25, ai_coach_model: 'gemini-3.8-flash',
     food_parse_per_day: 100, photo_scan_per_day: 6, trend_days: 365, family_members: 3,
   },
 };
@@ -201,8 +205,22 @@ function yearlySavingPercent(planId) {
   return Math.round((1 - p.yearly / (p.monthly * 12)) * 100);
 }
 
+// The Gemini model a plan's AI answers use right now:
+//   GEMINI_MODEL_<PLAN>  >  GEMINI_MODEL  >  LIMITS[plan].ai_coach_model
+// Only a well-formed model name from the environment is used.
+const AI_MODEL_RE = /^[a-z0-9][a-z0-9.\-]{1,62}$/;
+function aiModelFor(plan, env = process.env) {
+  const lim = LIMITS[plan];
+  if (!lim || !lim.ai_coach_model) return null; // plan has no AI answers
+  for (const key of [`GEMINI_MODEL_${String(plan).toUpperCase()}`, 'GEMINI_MODEL']) {
+    const v = String(env[key] || '').trim();
+    if (v && AI_MODEL_RE.test(v)) return v;
+  }
+  return lim.ai_coach_model;
+}
+
 module.exports = {
-  PLANS, PLAN_ORDER, LIMITS, FREE_LIMITS, FEATURE_TIERS, TRIAL_DAYS,
+  aiModelFor, PLANS, PLAN_ORDER, LIMITS, FREE_LIMITS, FEATURE_TIERS, TRIAL_DAYS,
   GOOGLE_PRODUCTS, GOOGLE_BASE_PLANS, BASE_PLANS, OFFERS,
   productIdFor, nextPlan, nextPlanWithMore, yearlySavingPercent,
 };

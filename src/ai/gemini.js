@@ -7,12 +7,22 @@
 // generationConfig.maxOutputTokens. Reference:
 //   https://ai.google.dev/api/generate-content  (checked 2026-10-09)
 //   https://ai.google.dev/gemini-api/docs/function-calling
+//   https://ai.google.dev/gemini-api/docs/thinking (thinkingLevel, Gemini 3)
+//   https://ai.google.dev/gemini-api/docs/models (checked 2026-10-10: Gemini 2.5
+//   is limited to existing users; new projects use 3.5 Flash-Lite / 3.8 Flash)
 // The key is read from the environment on the server only. It is never
 // logged, never sent to the app and never put in git.
 // ------------------------------------------------------------
 
 const BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 const MODEL_RE = /^[a-z0-9][a-z0-9.\-]{1,62}$/;
+
+const SAFETY_SETTINGS = [
+  { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_LOW_AND_ABOVE' },
+  { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_LOW_AND_ABOVE' },
+  { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
+  { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
+];
 
 class GeminiError extends Error {
   constructor(message, status) { super(message); this.status = status; }
@@ -25,7 +35,7 @@ class GeminiError extends Error {
  */
 async function generate({
   apiKey, model, systemInstruction, contents, functionDeclarations = [],
-  maxOutputTokens = 1024, temperature = 0.4, timeoutMs = 15000, fetchImpl = fetch,
+  maxOutputTokens = 1024, temperature = 0.6, timeoutMs = 15000, fetchImpl = fetch, thinkingLevel,
 }) {
   if (!apiKey) throw new GeminiError('GEMINI_API_KEY is not set', 0);
   if (!MODEL_RE.test(String(model || ''))) throw new GeminiError('Invalid model name', 0);
@@ -34,7 +44,13 @@ async function generate({
     systemInstruction: { parts: [{ text: systemInstruction }] },
     contents,
     generationConfig: { maxOutputTokens, temperature, candidateCount: 1 },
+    // Gemini's own filters, stricter than default for harassment and hate:
+    // a blocked reply comes back empty and the rule-based coach answers.
+    safetySettings: SAFETY_SETTINGS,
   };
+  // Gemini 3 models think by default; keep it low so replies stay fast and
+  // the output budget is not spent on thinking.
+  if (/^gemini-3/.test(model)) body.generationConfig.thinkingConfig = { thinkingLevel: thinkingLevel || 'low' };
   if (functionDeclarations.length) {
     body.tools = [{ functionDeclarations }];
     body.toolConfig = { functionCallingConfig: { mode: 'AUTO' } };
@@ -77,4 +93,4 @@ async function generate({
   };
 }
 
-module.exports = { generate, GeminiError, MODEL_RE };
+module.exports = { generate, GeminiError, MODEL_RE, SAFETY_SETTINGS };

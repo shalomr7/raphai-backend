@@ -10,12 +10,15 @@
 // Provider flow for one question (userId comes from the login token):
 //   1. Consent: the user's latest 'gemini' consent must be granted (DPDP:
 //      their data goes to Google only if they agreed). Else -> rule-based.
-//   2. Guardrails: obvious prompt-injection -> rule-based.
+//   2. Guardrails: obvious prompt-injection, harmful asks and eating-disorder
+//      behaviour -> rule-based (kind answer / helpline), nothing sent.
 //   3. Up to MAX_ROUNDS model calls. Each round the model may call up to
 //      MAX_CALLS_PER_ROUND tools (ai/tools.js); results go back as data.
 //   4. Whole thing must finish within TOTAL_BUDGET_MS; each HTTP call has
 //      its own timeout. Output tokens are capped per call.
-//   5. The answer is cleaned (ai/guardrails.js). Proposals the model made are
+//   5. The answer is checked and cleaned (ai/guardrails.js): disrespectful or
+//      unsafe replies are dropped (reason guardrail_output) and the rule-based
+//      coach answers instead. Proposals the model made are
 //      returned to the app, which shows a Confirm button.
 // Any failure returns null, and the coach answers with its rules instead.
 // ------------------------------------------------------------
@@ -25,12 +28,13 @@ const aiCoach = require('../services/aiCoach');
 const tools = require('./tools');
 const guard = require('./guardrails');
 const gemini = require('./gemini');
+const { aiModelFor } = require('../utils/plans');
 
 const MAX_ROUNDS = 4;
 const MAX_CALLS_PER_ROUND = 4;
 const PER_CALL_TIMEOUT_MS = 12000;
 const TOTAL_BUDGET_MS = 25000;
-const MAX_OUTPUT_TOKENS = 1024;
+const MAX_OUTPUT_TOKENS = 2048; // Gemini 3 counts (low) thinking tokens in the output budget
 
 async function hasGeminiConsent(userId) {
   const row = await db.get(`SELECT granted FROM consents WHERE user_id = $1 AND type = 'gemini' AND account_deleted_at IS NULL
@@ -38,16 +42,17 @@ async function hasGeminiConsent(userId) {
   return Boolean(row && row.granted);
 }
 
-// Plan model names can be overridden per plan: GEMINI_MODEL_PLUS, _PRO, _ELITE
+// Model: GEMINI_MODEL_<PLAN> > GEMINI_MODEL > the plan default (utils/plans.js)
 function resolveModel(plan, planModel, env = process.env) {
-  const override = env[`GEMINI_MODEL_${String(plan || '').toUpperCase()}`];
-  return (override && override.trim()) || planModel;
+  return aiModelFor(plan, env) || planModel;
 }
 
 function createGeminiProvider({ apiKey, fetchImpl = fetch, env = process.env, perCallTimeoutMs = PER_CALL_TIMEOUT_MS, totalBudgetMs = TOTAL_BUDGET_MS } = {}) {
   return async function geminiProvider({ userId, question, context, model, plan }) {
     if (!(await hasGeminiConsent(userId))) return { text: null, reason: 'consent_required' };
-    if (guard.looksLikeInjection(question)) return { text: null, reason: 'guardrail' };
+    if (guard.looksLikeInjection(question) || guard.looksHarmful(question) || guard.looksLikeEatingDisorder(question)) {
+      return { text: null, reason: 'guardrail' };
+    }
 
     const started = Date.now();
     const useModel = resolveModel(plan, model, env);
@@ -64,6 +69,9 @@ function createGeminiProvider({ apiKey, fetchImpl = fetch, env = process.env, pe
         timeoutMs: Math.min(perCallTimeoutMs, left), fetchImpl,
       });
       if (!r.functionCalls.length) {
+        // Output guardrail: a disrespectful or unsafe reply is never shown.
+        if (guard.answerViolation(r.text)) return { text: null, reason: 'guardrail_output' };
+        if (r.finishReason === 'SAFETY' && !r.text) return { text: null, reason: 'guardrail_output' };
         const text = guard.cleanAnswer(r.text);
         if (!text) return { text: null, reason: 'empty_answer' };
         return { text, data: { tools_used: used, proposals }, model: useModel };

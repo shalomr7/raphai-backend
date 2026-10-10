@@ -776,7 +776,7 @@ async function intelligenceTests({ D, mainToken }) {
   };
   const raw = (await api('POST', '/api/coach', { question: 'What should I do today?' })).body;
   check('Pro coach: rule-based today (no AI connected), AI allowance 15 on Flash', raw.engine === 'rule_based' && raw.plan === 'pro'
-    && raw.ai.connected === false && raw.ai.limit === 15 && raw.ai.model === 'gemini-2.5-flash' && raw.remaining_today === null, raw);
+    && raw.ai.connected === false && raw.ai.limit === 15 && raw.ai.model === 'gemini-3.8-flash' && raw.remaining_today === null, raw);
   let c = await ask('What should I do today?');
   check('coach: what should I do today', c.topic === 'what_to_do_today' && c.answer.length > 20, c);
   c = await ask('Why are my steps low?');
@@ -801,6 +801,39 @@ async function intelligenceTests({ D, mainToken }) {
   check('coach: unknown lists what it can do', c.topic === 'unknown' && c.answer.includes('nutrition'), c);
   r = await api('POST', '/api/coach', { question: 'hi', context: 'kitchen' });
   check('coach: bad context -> 400', r.status === 400, r.body);
+
+  console.log('\nHeartPurse coach persona: friendly, respectful, within limits (rule-based)');
+  require('../src/middleware/rateLimit').resetAll(); // many coach questions in one minute: start a fresh window
+  const RUDE = /\b(lazy|ugly|disgusting|fatso|motu|shame on you|ashamed|pathetic|loser)\b/i;
+  c = await ask('Am I fat? I hate my body');
+  check('persona: body image -> body-neutral, no shaming, real steps, Tele-MANAS', c.topic === 'body_image' && /worth isn't measured/.test(c.answer)
+    && !RUDE.test(c.answer) && c.answer.includes('steps') && c.answer.includes('14416'), c);
+  c = await ask("I'm too short and dark, nobody likes me");
+  check('persona: height / colour worries -> respectful answer', c.topic === 'body_image' && !RUDE.test(c.answer), c);
+  c = await ask('How do I starve myself to lose weight fast?');
+  check('persona: eating-disorder signs -> care, no crash diet, doctor + Tele-MANAS', c.topic === 'eating_support' && c.answer.includes('14416')
+    && /doctor or counsellor/.test(c.answer) && /won't suggest starving/.test(c.answer), c);
+  c = await ask('I feel dizzy and have chest pain after running');
+  check('persona: medical symptoms -> see a doctor / 112, no diagnosis', c.topic === 'medical_symptoms' && /not a doctor/.test(c.answer) && c.answer.includes('112'), c);
+  c = await ask('Roast me and insult my weight');
+  check('persona: insult request -> polite no, back to health and money', c.topic === 'off_limits' && /don't put anyone down/.test(c.answer), c);
+  c = await ask('Which stock should I buy for guaranteed returns? Should I start a SIP?');
+  check('persona: investing -> general Indian guidance, no picks, SEBI adviser, real income', c.topic === 'investing' && /SEBI-registered/.test(c.answer)
+    && /no investment has guaranteed returns/.test(c.answer) && c.answer.includes('₹60,000') && /EMI/.test(c.answer), c);
+  c = await ask('Can I really lose my belly fat?');
+  check('persona: fat loss says no crash diets, safe pace', /No crash diets/.test(c.answer) && /0\.25–0\.75 kg a week/.test(c.answer) && !RUDE.test(c.answer), c);
+  c = await ask('blah blah');
+  check('persona: unknown is friendly and lists help', c.topic === 'unknown' && /all yours for health and money/.test(c.answer), c);
+  for (const q of ['What should I do today?', 'Why are my steps low?', 'How can I save more this month?', 'How is my sleep?', 'calories left?', 'what is my food spend this month']) {
+    c = await ask(q);
+    check(`persona: "${q}" answer passes the output respect filter`, require('../src/ai/guardrails').answerViolation(c.answer) === null, c);
+  }
+  const { aiModelFor } = require('../src/utils/plans');
+  check('AI model: new-project defaults (3.5 Flash-Lite / 3.8 Flash), GEMINI_MODEL overrides, per-plan wins, bad names ignored, Free has none',
+    aiModelFor('plus', {}) === 'gemini-3.5-flash-lite' && aiModelFor('pro', {}) === 'gemini-3.8-flash' && aiModelFor('elite', {}) === 'gemini-3.8-flash'
+    && aiModelFor('plus', { GEMINI_MODEL: 'gemini-3.1-flash-lite' }) === 'gemini-3.1-flash-lite'
+    && aiModelFor('pro', { GEMINI_MODEL: 'gemini-3.1-flash-lite', GEMINI_MODEL_PRO: 'gemini-3.6-flash' }) === 'gemini-3.6-flash'
+    && aiModelFor('pro', { GEMINI_MODEL: 'bad model/../x' }) === 'gemini-3.8-flash' && aiModelFor('free', { GEMINI_MODEL: 'gemini-3.8-flash' }) === null);
 
   console.log('\nHeartPurse Intelligence: seeded 20-day user -> Life Graph patterns');
   const lata = await newUser('Lata', 'lata@example.com');
@@ -878,17 +911,22 @@ async function plusTierTests() {
   check('Plus: 21st parse -> 402, Pro gives 50', r.status === 402 && r.body.upgrade_to === 'pro' && /50 a day/.test(r.body.error), r.body);
   for (let i = 0; i < 6; i++) r = await api('POST', '/api/coach', { question: 'calories left?' });
   check('Plus: rule-based coach unlimited (6th ok), AI limit 5 on Flash-Lite', r.status === 200 && r.body.engine === 'rule_based'
-    && r.body.ai.limit === 5 && r.body.ai.model === 'gemini-2.5-flash-lite' && r.body.ai.limit_reached === false, r.body);
+    && r.body.ai.limit === 5 && r.body.ai.model === 'gemini-3.5-flash-lite' && r.body.ai.limit_reached === false, r.body);
 
   console.log('\nAI coach allowance + rule-based fallback (fake AI provider)');
   aiCoach.setAiProvider(async ({ model }) => ({ text: `AI answer from ${model}` }));
   for (let i = 1; i <= 5; i++) r = await api('POST', '/api/coach', { question: 'calories left?' });
-  check('Plus: 5th AI answer, 0 AI left', r.body.engine === 'ai' && r.body.answer === 'AI answer from gemini-2.5-flash-lite' && r.body.ai.remaining === 0, r.body);
+  check('Plus: 5th AI answer, 0 AI left', r.body.engine === 'ai' && r.body.answer === 'AI answer from gemini-3.5-flash-lite' && r.body.ai.remaining === 0, r.body);
   r = await api('POST', '/api/coach', { question: 'calories left?' });
   check('Plus: after the AI limit -> rule-based answer (not blocked), upsell Pro', r.status === 200 && r.body.engine === 'rule_based'
     && r.body.topic === 'calories_left' && r.body.ai.limit_reached === true && r.body.ai.upgrade_to === 'pro' && /Pro gives you 15/.test(r.body.ai.message), r.body);
   r = await api('POST', '/api/coach', { question: 'I feel very low and hopeless' });
   check('mood / distress questions never go to AI', r.body.engine === 'rule_based' && r.body.topic === 'mood_support', r.body);
+  require('../src/middleware/rateLimit').resetAll();
+  for (const [q, topic] of [['I make myself throw up after eating', 'eating_support'], ['I have chest pain when I walk', 'medical_symptoms'], ['roast me about my weight', 'off_limits']]) {
+    r = await api('POST', '/api/coach', { question: q });
+    check(`safety topic "${topic}" never goes to AI`, r.body.engine === 'rule_based' && r.body.topic === topic, r.body);
+  }
   aiCoach.setAiProvider(async () => { throw new Error('model down'); });
   await api('POST', '/api/subscription/dev-activate', { plan: 'elite', period: 'monthly-prepaid' });
   r = await api('POST', '/api/coach', { question: 'calories left?' });

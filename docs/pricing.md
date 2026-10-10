@@ -22,7 +22,7 @@ Existing subscribers are grandfathered: the server maps product id -> plan and n
 | | Free | Plus | Pro | Elite |
 |---|---|---|---|---|
 | Rule-based coach questions | 5 (then 402, upsell Plus) | unlimited | unlimited | unlimited |
-| AI coach answers | 0 | 5 (gemini-2.5-flash-lite) | 15 (gemini-2.5-flash) | 25 (gemini-2.5-flash) |
+| AI coach answers | 0 | 5 (gemini-3.5-flash-lite) | 15 (gemini-3.8-flash) | 25 (gemini-3.8-flash) |
 | Typed food parses | 5 | 20 | 50 | 100 |
 | Photo food scans (feature not built) | 0 | 0 | 5 | 6 |
 | Trends window | 7 days | 30 days | 365 days | 365 days |

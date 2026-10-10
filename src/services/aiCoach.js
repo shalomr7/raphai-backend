@@ -21,7 +21,7 @@
 
 const db = require('../db');
 const { today } = require('../utils/dates');
-const { LIMITS, PLANS, nextPlanWithMore } = require('../utils/plans');
+const { LIMITS, PLANS, nextPlanWithMore, aiModelFor } = require('../utils/plans');
 
 const FEATURE = 'coach_ai';
 let provider = null; // no AI connected yet
@@ -59,7 +59,7 @@ async function tryAiAnswer({ userId, plan, question, context }) {
   const limit = lim.ai_coach_per_day || 0;
   const info = {
     connected: aiConnected(),
-    model: lim.ai_coach_model,
+    model: aiModelFor(plan),
     limit,
     used: 0,
     remaining: limit,
@@ -92,7 +92,7 @@ async function tryAiAnswer({ userId, plan, question, context }) {
   let answer = null;
   let failed = false;
   try {
-    answer = await provider({ userId, question, context, model: lim.ai_coach_model, plan });
+    answer = await provider({ userId, question, context, model: aiModelFor(plan), plan });
   } catch (e) {
     console.warn('AI coach failed, using rule-based answer:', String(e.message || e).slice(0, 120));
     answer = null;
@@ -100,7 +100,7 @@ async function tryAiAnswer({ userId, plan, question, context }) {
   }
   if (!answer || !answer.text) {
     await giveBack(userId);
-    // reason (from ai/index.js): consent_required | guardrail | timeout | empty_answer | too_many_tool_rounds
+    // reason (from ai/index.js): consent_required | guardrail | guardrail_output | timeout | empty_answer | too_many_tool_rounds
     const reason = answer && answer.reason ? String(answer.reason) : (failed ? 'provider_error' : 'no_answer');
     return { answer: null, info: { ...info, used: count - 1, remaining: Math.max(0, limit - count + 1), reason } };
   }

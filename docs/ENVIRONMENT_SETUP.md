@@ -12,7 +12,8 @@ Backend (Render dashboard; never in git):
 | DATABASE_SSL / DATABASE_SSL_CA | no | CA turns on cert verification |
 | PG_POOL_MAX | no | default 5 |
 | GEMINI_API_KEY | no | unset = rule-based coach |
-| GEMINI_MODEL_PLUS / _PRO / _ELITE | no | model overrides |
+| GEMINI_MODEL | no | one model for every plan's AI answers (e.g. `gemini-3.5-flash-lite`); default: Plus `gemini-3.5-flash-lite`, Pro/Elite `gemini-3.8-flash` |
+| GEMINI_MODEL_PLUS / _PRO / _ELITE | no | per-plan model override (wins over GEMINI_MODEL) |
 | GOOGLE_PLAY_SERVICE_ACCOUNT_JSON, GOOGLE_PLAY_PACKAGE_NAME | for billing | |
 | GOOGLE_RTDN_SECRET, GOOGLE_RTDN_AUDIENCE, GOOGLE_RTDN_SERVICE_ACCOUNT_EMAIL | for billing | |
 | API_RATE_LIMIT_PER_MIN, COACH_RATE_LIMIT_PER_MIN | no | overrides |
