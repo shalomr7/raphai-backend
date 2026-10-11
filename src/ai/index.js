@@ -28,6 +28,7 @@ const aiCoach = require('../services/aiCoach');
 const tools = require('./tools');
 const guard = require('./guardrails');
 const gemini = require('./gemini');
+const aiUsage = require('../services/aiUsage');
 const { aiModelFor } = require('../utils/plans');
 
 const MAX_ROUNDS = 4;
@@ -54,8 +55,31 @@ function createGeminiProvider({ apiKey, fetchImpl = fetch, env = process.env, pe
       return { text: null, reason: 'guardrail' };
     }
 
-    const started = Date.now();
     const useModel = resolveModel(plan, model, env);
+    // Global AI spend cap (services/aiUsage.js): over it -> rule-based answer
+    const budget = await aiUsage.budgetStatus();
+    if (!budget.ok) {
+      await aiUsage.record({ userId, feature: 'coach', model: useModel, status: 'blocked_budget' });
+      return { text: null, reason: 'ai_budget' };
+    }
+    // Metering: one ai_usage row per question, tokens summed over all rounds
+    const meter = { calls: 0, usage: null };
+    const t0 = Date.now();
+    let status = 'error';
+    try {
+      const out = await runRounds({ userId, question, context, useModel, meter });
+      status = out && out.text ? 'ok' : (out && out.reason === 'timeout' ? 'timeout' : 'fallback');
+      return out;
+    } catch (e) {
+      if (/timed out/i.test(String(e && e.message))) status = 'timeout';
+      throw e;
+    } finally {
+      if (meter.calls) await aiUsage.record({ userId, feature: 'coach', model: useModel, usage: meter.usage, status, latencyMs: Date.now() - t0 });
+    }
+  };
+
+  async function runRounds({ userId, question, context, useModel, meter }) {
+    const started = Date.now();
     const contents = [{ role: 'user', parts: [{ text: guard.wrapQuestion(question, context) }] }];
     const used = [];
     const proposals = [];
@@ -63,11 +87,13 @@ function createGeminiProvider({ apiKey, fetchImpl = fetch, env = process.env, pe
     for (let round = 0; round < MAX_ROUNDS; round++) {
       const left = totalBudgetMs - (Date.now() - started);
       if (left < Math.min(1500, totalBudgetMs / 4)) return { text: null, reason: 'timeout' };
+      meter.calls++;
       const r = await gemini.generate({
         apiKey, model: useModel, systemInstruction: guard.SYSTEM_INSTRUCTION, contents,
         functionDeclarations: tools.declarations(), maxOutputTokens: MAX_OUTPUT_TOKENS,
         timeoutMs: Math.min(perCallTimeoutMs, left), fetchImpl,
       });
+      meter.usage = aiUsage.addUsage(meter.usage, r.usage);
       if (!r.functionCalls.length) {
         // Output guardrail: a disrespectful or unsafe reply is never shown.
         if (guard.answerViolation(r.text)) return { text: null, reason: 'guardrail_output' };
@@ -94,7 +120,7 @@ function createGeminiProvider({ apiKey, fetchImpl = fetch, env = process.env, pe
       contents.push({ role: 'user', parts: responses });
     }
     return { text: null, reason: 'too_many_tool_rounds' };
-  };
+  }
 }
 
 // Wire the provider into the coach based on the environment.

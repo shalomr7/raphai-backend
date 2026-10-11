@@ -8,6 +8,8 @@
 //   https://ai.google.dev/api/generate-content  (checked 2026-10-09)
 //   https://ai.google.dev/gemini-api/docs/function-calling
 //   https://ai.google.dev/gemini-api/docs/thinking (thinkingLevel, Gemini 3)
+//   https://ai.google.dev/gemini-api/docs/structured-output (responseSchema)
+//   https://ai.google.dev/gemini-api/docs/image-understanding (inlineData parts)
 //   https://ai.google.dev/gemini-api/docs/models (checked 2026-10-10: Gemini 2.5
 //   is limited to existing users; new projects use 3.5 Flash-Lite / 3.8 Flash)
 // The key is read from the environment on the server only. It is never
@@ -36,6 +38,7 @@ class GeminiError extends Error {
 async function generate({
   apiKey, model, systemInstruction, contents, functionDeclarations = [],
   maxOutputTokens = 1024, temperature = 0.6, timeoutMs = 15000, fetchImpl = fetch, thinkingLevel,
+  responseSchema, // optional: JSON output that must match this schema (structured output)
 }) {
   if (!apiKey) throw new GeminiError('GEMINI_API_KEY is not set', 0);
   if (!MODEL_RE.test(String(model || ''))) throw new GeminiError('Invalid model name', 0);
@@ -51,6 +54,10 @@ async function generate({
   // Gemini 3 models think by default; keep it low so replies stay fast and
   // the output budget is not spent on thinking.
   if (/^gemini-3/.test(model)) body.generationConfig.thinkingConfig = { thinkingLevel: thinkingLevel || 'low' };
+  if (responseSchema) {
+    body.generationConfig.responseMimeType = 'application/json';
+    body.generationConfig.responseSchema = responseSchema;
+  }
   if (functionDeclarations.length) {
     body.tools = [{ functionDeclarations }];
     body.toolConfig = { functionCallingConfig: { mode: 'AUTO' } };

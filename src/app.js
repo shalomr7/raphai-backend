@@ -56,6 +56,11 @@ function createApp() {
   // A rough per-IP cap on the whole API (stops floods; normal use is far below it)
   app.use('/api', rateLimit({ name: 'api_ip', windowMs: 60 * 1000, max: Number(process.env.API_RATE_LIMIT_PER_MIN) || 600, key: byIp }));
 
+  // Food photo (stage 2): its own body parsers (up to ~6 MB on /analyze only),
+  // so it is mounted BEFORE the app-wide 100 kb JSON parser. Login required.
+  app.use('/api/food/photo', requireAuth, rateLimit({ name: 'food_photo_user', windowMs: 60 * 1000, max: 10, key: byUser,
+    message: 'Too many photos at once. Please wait a minute and try again.' }), require('./routes/foodPhoto'));
+
   // Read JSON bodies (e.g. { "email": "..." }) into req.body
   app.use(express.json({ limit: '100kb' }));
 

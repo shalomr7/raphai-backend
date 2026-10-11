@@ -132,13 +132,19 @@ const logsRouter = express.Router();
 // One log row joined with its food, with nutrition multiplied by servings.
 // (Postgres ROUND(x, 1) needs a "numeric", so we cast; db.js turns it back into a number.)
 const LOG_SELECT = `
-  SELECT l.id, l.date, l.meal, l.servings, l.food_id, f.name, f.serving,
-         ROUND((f.kcal * l.servings)::numeric) AS kcal,
-         ROUND((f.protein_g * l.servings)::numeric, 1) AS protein_g,
-         ROUND((f.carbs_g * l.servings)::numeric, 1) AS carbs_g,
-         ROUND((f.fat_g * l.servings)::numeric, 1) AS fat_g
-  FROM food_logs l JOIN foods f ON f.id = l.food_id
+  SELECT l.id, l.date, l.meal, l.servings, l.food_id,
+         COALESCE(f.name, l.custom_name) AS name,
+         COALESCE(f.serving, CASE WHEN l.custom_grams IS NOT NULL THEN '~' || round(l.custom_grams::numeric)::text || ' g' ELSE '1 portion' END) AS serving,
+         ROUND((COALESCE(f.kcal, l.custom_kcal) * l.servings)::numeric) AS kcal,
+         ROUND((COALESCE(f.protein_g, l.custom_protein_g, 0) * l.servings)::numeric, 1) AS protein_g,
+         ROUND((COALESCE(f.carbs_g, l.custom_carbs_g, 0) * l.servings)::numeric, 1) AS carbs_g,
+         ROUND((COALESCE(f.fat_g, l.custom_fat_g, 0) * l.servings)::numeric, 1) AS fat_g,
+         l.is_estimate, l.source
+  FROM food_logs l LEFT JOIN foods f ON f.id = l.food_id
 `;
+// (Stage 2) Entries without a library food (food_id NULL, e.g. from a food
+// photo) carry their own custom_* name and nutrition; they read like any other
+// entry, plus is_estimate and source.
 
 const LOG_RULES = {
   food_id: { type: 'integer', required: true, min: 1 },
@@ -166,15 +172,18 @@ logsRouter.post('/repeat', asyncHandler(async (req, res) => {
   });
   const to = b.to_date || today();
   const from = b.from_date || dayBefore(to);
-  const items = await db.all('SELECT food_id, servings FROM food_logs WHERE user_id = $1 AND date = $2 AND meal = $3 ORDER BY id',
+  const items = await db.all(`SELECT food_id, servings, custom_name, custom_kcal, custom_protein_g, custom_carbs_g, custom_fat_g,
+      custom_grams, is_estimate, source FROM food_logs WHERE user_id = $1 AND date = $2 AND meal = $3 ORDER BY id`,
     [req.user.id, from, b.meal]);
   if (!items.length) throw new HttpError(404, `Nothing logged for ${b.meal} on ${from}`);
 
   const ids = await db.tx(async (t) => {
     const out = [];
     for (const i of items) {
-      out.push((await t.get('INSERT INTO food_logs (user_id, food_id, date, meal, servings) VALUES ($1, $2, $3, $4, $5) RETURNING id',
-        [req.user.id, i.food_id, to, b.meal, i.servings])).id);
+      out.push((await t.get(`INSERT INTO food_logs (user_id, food_id, date, meal, servings, custom_name, custom_kcal, custom_protein_g,
+          custom_carbs_g, custom_fat_g, custom_grams, is_estimate, source) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
+        [req.user.id, i.food_id, to, b.meal, i.servings, i.custom_name, i.custom_kcal, i.custom_protein_g, i.custom_carbs_g, i.custom_fat_g,
+          i.custom_grams, i.is_estimate, i.source])).id);
     }
     return out;
   });

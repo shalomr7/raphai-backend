@@ -27,11 +27,11 @@ function profileIsComplete(p) {
 async function foodTotals(userId, date) {
   const row = await db.get(`
     SELECT
-      COALESCE(SUM(f.kcal * l.servings), 0)      AS kcal,
-      COALESCE(SUM(f.protein_g * l.servings), 0) AS protein_g,
-      COALESCE(SUM(f.carbs_g * l.servings), 0)   AS carbs_g,
-      COALESCE(SUM(f.fat_g * l.servings), 0)     AS fat_g
-    FROM food_logs l JOIN foods f ON f.id = l.food_id
+      COALESCE(SUM(COALESCE(f.kcal, l.custom_kcal, 0) * l.servings), 0)           AS kcal,
+      COALESCE(SUM(COALESCE(f.protein_g, l.custom_protein_g, 0) * l.servings), 0) AS protein_g,
+      COALESCE(SUM(COALESCE(f.carbs_g, l.custom_carbs_g, 0) * l.servings), 0)     AS carbs_g,
+      COALESCE(SUM(COALESCE(f.fat_g, l.custom_fat_g, 0) * l.servings), 0)         AS fat_g
+    FROM food_logs l LEFT JOIN foods f ON f.id = l.food_id
     WHERE l.user_id = $1 AND l.date = $2
   `, [userId, date]);
   return {

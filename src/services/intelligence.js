@@ -86,8 +86,8 @@ async function loadDays(userId, from, to) {
     db.all(`SELECT date, SUM(hours) AS h, AVG(quality) AS q FROM sleep_logs WHERE ${W} GROUP BY date`, p),
     db.all(`SELECT date, AVG(mood) AS m FROM mood_logs WHERE ${W} GROUP BY date`, p),
     db.all(`SELECT date, SUM(ml) AS ml FROM water_logs WHERE ${W} GROUP BY date`, p),
-    db.all(`SELECT l.date, SUM(f.kcal * l.servings) AS kcal, SUM(f.protein_g * l.servings) AS protein, COUNT(*)::int AS n
-            FROM food_logs l JOIN foods f ON f.id = l.food_id WHERE l.user_id = $1 AND l.date >= $2 AND l.date <= $3 GROUP BY l.date`, p),
+    db.all(`SELECT l.date, SUM(COALESCE(f.kcal, l.custom_kcal, 0) * l.servings) AS kcal, SUM(COALESCE(f.protein_g, l.custom_protein_g, 0) * l.servings) AS protein, COUNT(*)::int AS n
+            FROM food_logs l LEFT JOIN foods f ON f.id = l.food_id WHERE l.user_id = $1 AND l.date >= $2 AND l.date <= $3 GROUP BY l.date`, p),
     db.all(`SELECT date, SUM(minutes) AS min, COUNT(*)::int AS n FROM workouts WHERE ${W} GROUP BY date`, p),
     db.all(`SELECT date,
               SUM(amount_paise) FILTER (WHERE category <> 'Investment') AS spend_paise,

@@ -14,6 +14,9 @@ Backend (Render dashboard; never in git):
 | GEMINI_API_KEY | no | unset = rule-based coach |
 | GEMINI_MODEL | no | one model for every plan's AI answers (e.g. `gemini-3.5-flash-lite`); default: Plus `gemini-3.5-flash-lite`, Pro/Elite `gemini-3.8-flash` |
 | GEMINI_MODEL_PLUS / _PRO / _ELITE | no | per-plan model override (wins over GEMINI_MODEL) |
+| FOOD_PHOTO_ENABLED | no | `false` turns food photo off (503 food_photo_unavailable); unset = on (rollout still limited by app_config, see docs/FOOD_PHOTO.md) |
+| FOOD_PHOTO_MODEL | no | vision model for food photos; default `gemini-3.5-flash-lite` |
+| AI_MONTHLY_BUDGET_INR | no | fallback monthly AI budget only if app_config has no `ai_monthly_budget_inr` (default 1000) |
 | GOOGLE_PLAY_SERVICE_ACCOUNT_JSON, GOOGLE_PLAY_PACKAGE_NAME | for billing | |
 | GOOGLE_RTDN_SECRET, GOOGLE_RTDN_AUDIENCE, GOOGLE_RTDN_SERVICE_ACCOUNT_EMAIL | for billing | |
 | API_RATE_LIMIT_PER_MIN, COACH_RATE_LIMIT_PER_MIN | no | overrides |

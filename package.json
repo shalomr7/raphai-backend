@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
-    "test": "node test/smoke.js && node test/security.js && node test/admin.js && node test/google.js",
+    "test": "node test/smoke.js && node test/security.js && node test/admin.js && node test/google.js && node test/food_photo.js",
+    "test:food-photo": "node test/food_photo.js",
     "test:google": "node test/google.js",
     "test:admin": "node test/admin.js",
     "test:security": "node test/security.js"
@@ -24,6 +25,7 @@
     "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.2",
     "marked": "^15.0.12",
-    "pg": "^8.23.1"
+    "pg": "^8.23.1",
+    "sharp": "^0.34.5"
   }
 }
