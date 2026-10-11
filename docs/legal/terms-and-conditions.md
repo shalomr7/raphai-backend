@@ -4,7 +4,7 @@
 **Effective date:** 10 October 2026
 **Last updated:** 10 October 2026
 
-These Terms & Conditions ("**Terms**") are a legal agreement between you and **Shalem Raj Rooppa, an individual developer operating under the name HeartPurse (sole proprietorship)**, [POSTAL ADDRESS], Andhra Pradesh, India ("**HeartPurse**", "**we**", "**us**", "**our**"). They cover the HeartPurse Android app and related services (together, the "**Service**").
+These Terms & Conditions ("**Terms**") are a legal agreement between you and **HeartPurse**, an independent app based in India ("**HeartPurse**", "**we**", "**us**", "**our**"). They cover the HeartPurse Android app and related services (together, the "**Service**").
 
 **By creating an account or using HeartPurse, you agree to these Terms and to our [Privacy Policy](/privacy)**. If you do not agree, please do not use HeartPurse. These Terms are an electronic record under the Information Technology Act, 2000 and do not need a physical signature.
 
@@ -37,17 +37,8 @@ These Terms & Conditions ("**Terms**") are a legal agreement between you and **S
 
 ### 3.1 Plans and prices
 
-HeartPurse has a free plan and three paid plans. Prices are in Indian rupees, as listed in Google Play India:
+HeartPurse has a free plan and paid plans. The current plans, features and prices are shown in the app and in Google Play before you subscribe.
 
-| Plan | Monthly | Quarterly (3 months) | Yearly | Prepaid 1 month (no auto-renew) |
-|---|---|---|---|---|
-| **Free** | ₹0 | – | – | – |
-| **Plus** | ₹79 | ₹199 | ₹599 | ₹89 |
-| **Pro** | ₹199 | ₹499 | ₹1,499 | ₹219 |
-| **Elite** | ₹349 | ₹899 | ₹2,499 | ₹379 |
-
-- **Free** includes the core features and may show ads in future (never on health or money-entry screens). Ads are shown on Free only; paid plans have no ads.
-- **Elite** is planned to cover **up to 3 family members**. This family feature is **coming soon**; until it is available in the app, Elite covers one account.
 - **Prices shown in Google Play include applicable taxes (such as GST), as Google displays them.** Google Play may show a different price in your country, currency or for your account (for example during a sale or offer). **The price Google Play shows you at checkout is the price you pay.**
 - The features and daily limits of each plan (for example the number of AI coach answers or food parses a day) are shown in the app when you subscribe. AI features have **fair-use daily limits**; when you reach a limit, the coach switches to simpler built-in answers until the next day. We may improve, add or change features. We will not take away a main feature you have already paid for during your current paid period.
 - **Existing subscribers** keep the price they signed up at until it is changed under section 3.7.
@@ -67,7 +58,7 @@ HeartPurse has a free plan and three paid plans. Prices are in Indian rupees, as
 
 From time to time we may run offers through Google Play, for example:
 
-- **Launch offer:** Pro yearly at **₹999 for the first year** for new subscribers, then the normal yearly price (₹1,499 today) from the first renewal, unless you cancel.
+- **Launch offers:** any introductory offer is shown in Google Play before you subscribe, along with the normal price that applies from the first renewal.
 - **Win-back offer:** for people who subscribed before and come back, **50% off the monthly price for the first 3 months**, then the normal monthly price, unless you cancel.
 
 Each offer shows its price, length and what you pay afterwards in Google Play before you confirm. We choose who is eligible for an offer, and we may start, change or end offers at any time; this does not affect an offer you have already accepted.
@@ -194,9 +185,8 @@ You agree to compensate HeartPurse and its owner for claims, losses and reasonab
 
 Our Grievance Officer handles complaints about the Service, billing and your data:
 
-- **Name:** Shalem Raj Rooppa
+- **Name:** Grievance Officer, HeartPurse
 - **Email:** [SUPPORT EMAIL]
-- **Post:** [POSTAL ADDRESS], Andhra Pradesh, India
 
 We **acknowledge every complaint within 48 hours** and **resolve it within 30 days** of receipt. This follows the Consumer Protection (E-Commerce) Rules, 2020 (acknowledge in 48 hours, redress in one month), the SPDI Rules, 2011 (one month) and the DPDP Rules, 2025 (at most 90 days). If any part of HeartPurse is treated as an intermediary, content complaints under the IT (Intermediary Guidelines and Digital Media Ethics Code) Rules, 2021 will be acknowledged within 24 hours and resolved within 15 days.
 
@@ -223,6 +213,5 @@ We may update these Terms. We will change the "Last updated" date and version. F
 
 ## 21. Contact us
 
-**HeartPurse** — Shalem Raj Rooppa (sole proprietorship)
+**HeartPurse**
 Email: [SUPPORT EMAIL]
-Post: [POSTAL ADDRESS], Andhra Pradesh, India
