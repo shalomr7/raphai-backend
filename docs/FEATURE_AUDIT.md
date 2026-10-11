@@ -27,7 +27,7 @@ Evidence: `test/smoke.js` (304 checks), `test/security.js` (73 checks), code rea
 | Billing | dev-activate | W | Only NODE_ENV development/test |
 | Privacy | Export, delete (app + web page), consents, security logs + purge | W | |
 | Privacy | Inactive-account deletion job | X | Policy says "may" |
-| Legal | /privacy, /terms | W | [SUPPORT EMAIL], [POSTAL ADDRESS] still blank |
+| Legal | /privacy, /terms | W | support@heartpurse.com, [POSTAL ADDRESS] still blank |
 | Mobile | Photo scan, family, PDF report, imperial, languages | M | "Coming soon" |
 ## Roadmap (Android beta first)
 | Phase | Scope | Status |

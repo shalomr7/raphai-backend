@@ -92,7 +92,7 @@ ${msg}
   <label><input type="checkbox" name="confirm" value="yes" required>I understand this permanently deletes my account and data.</label>
   <button type="submit">Permanently delete my account</button>
 </form>
-<p>Forgot your password, or can't sign in? Email [SUPPORT EMAIL] from your registered email with the subject
+<p>Forgot your password, or can't sign in? Email support@heartpurse.com from your registered email with the subject
 "Delete my HeartPurse account". We will check it is you and then delete it.</p>`;
 }
 

@@ -29,7 +29,7 @@ These Terms & Conditions ("**Terms**") are a legal agreement between you and **H
 
 - Sign up with your email and a password. *(Planned: Google sign-in and mobile OTP login.)*
 - Keep your password and phone safe. You are responsible for activity under your account.
-- Tell us at once at [SUPPORT EMAIL] if you think someone else used your account.
+- Tell us at once at support@heartpurse.com if you think someone else used your account.
 - One person, one account. Do not share, sell or transfer your account.
 - You can delete your account anytime: **You → Privacy Centre → Delete account**, or on our [account deletion page](/delete-account). Our Privacy Policy explains what happens to your data.
 
@@ -84,7 +84,7 @@ Each offer shows its price, length and what you pay afterwards in Google Play be
 ### 3.8 Refunds
 
 - Payments are processed by Google, so **refunds follow [Google Play's refund policy](https://support.google.com/googleplay/answer/2479637)**. You can request a refund through Google Play.
-- **Goodwill refunds.** If something went wrong, email [SUPPORT EMAIL]. We may give a goodwill refund **at our discretion**, even where Google's policy does not require one.
+- **Goodwill refunds.** If something went wrong, email support@heartpurse.com. We may give a goodwill refund **at our discretion**, even where Google's policy does not require one.
 - **If we shut the Service down** while you have a paid subscription, we will give you a **pro-rata refund** for the unused part of your paid period.
 - Nothing here takes away any refund right you have under the **Consumer Protection Act, 2019**.
 
@@ -186,7 +186,7 @@ You agree to compensate HeartPurse and its owner for claims, losses and reasonab
 Our Grievance Officer handles complaints about the Service, billing and your data:
 
 - **Name:** Grievance Officer, HeartPurse
-- **Email:** [SUPPORT EMAIL]
+- **Email:** support@heartpurse.com
 
 We **acknowledge every complaint within 48 hours** and **resolve it within 30 days** of receipt. This follows the Consumer Protection (E-Commerce) Rules, 2020 (acknowledge in 48 hours, redress in one month), the SPDI Rules, 2011 (one month) and the DPDP Rules, 2025 (at most 90 days). If any part of HeartPurse is treated as an intermediary, content complaints under the IT (Intermediary Guidelines and Digital Media Ethics Code) Rules, 2021 will be acknowledged within 24 hours and resolved within 15 days.
 
@@ -214,4 +214,4 @@ We may update these Terms. We will change the "Last updated" date and version. F
 ## 21. Contact us
 
 **HeartPurse**
-Email: [SUPPORT EMAIL]
+Email: support@heartpurse.com
