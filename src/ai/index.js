@@ -43,17 +43,28 @@ async function hasGeminiConsent(userId) {
   return Boolean(row && row.granted);
 }
 
+// The user's first name (+ age and sex if filled in) for <user_profile>
+async function basicProfile(userId) {
+  const r = await db.get('SELECT u.name, p.age, p.sex FROM users u LEFT JOIN profiles p ON p.user_id = u.id WHERE u.id = $1', [userId]);
+  if (!r) return null;
+  const first = String(r.name || '').trim().split(/\s+/)[0] || null;
+  return { first_name: first, age: r.age == null ? null : Number(r.age), sex: r.sex || null };
+}
+
 // Model: GEMINI_MODEL_<PLAN> > GEMINI_MODEL > the plan default (utils/plans.js)
 function resolveModel(plan, planModel, env = process.env) {
   return aiModelFor(plan, env) || planModel;
 }
 
 function createGeminiProvider({ apiKey, fetchImpl = fetch, env = process.env, perCallTimeoutMs = PER_CALL_TIMEOUT_MS, totalBudgetMs = TOTAL_BUDGET_MS } = {}) {
-  return async function geminiProvider({ userId, question, context, model, plan }) {
+  return async function geminiProvider({ userId, question, context, history = [], model, plan }) {
     if (!(await hasGeminiConsent(userId))) return { text: null, reason: 'consent_required' };
     if (guard.looksLikeInjection(question) || guard.looksHarmful(question) || guard.looksLikeEatingDisorder(question)) {
       return { text: null, reason: 'guardrail' };
     }
+    // Earlier turns of this chat (sent by the app, never stored). The user's
+    // earlier messages get the same injection check as the question.
+    if (history.some((t) => t.role === 'user' && guard.looksLikeInjection(t.text))) return { text: null, reason: 'guardrail' };
 
     const useModel = resolveModel(plan, model, env);
     // Global AI spend cap (services/aiUsage.js): over it -> rule-based answer
@@ -67,7 +78,7 @@ function createGeminiProvider({ apiKey, fetchImpl = fetch, env = process.env, pe
     const t0 = Date.now();
     let status = 'error';
     try {
-      const out = await runRounds({ userId, question, context, useModel, meter });
+      const out = await runRounds({ userId, question, context, history, useModel, meter });
       status = out && out.text ? 'ok' : (out && out.reason === 'timeout' ? 'timeout' : 'fallback');
       return out;
     } catch (e) {
@@ -78,9 +89,12 @@ function createGeminiProvider({ apiKey, fetchImpl = fetch, env = process.env, pe
     }
   };
 
-  async function runRounds({ userId, question, context, useModel, meter }) {
+  async function runRounds({ userId, question, context, history, useModel, meter }) {
     const started = Date.now();
-    const contents = [{ role: 'user', parts: [{ text: guard.wrapQuestion(question, context) }] }];
+    const contents = [
+      ...guard.historyContents(history),
+      { role: 'user', parts: [{ text: guard.wrapQuestion(question, context, await basicProfile(userId)) }] },
+    ];
     const used = [];
     const proposals = [];
 
@@ -134,4 +148,4 @@ function configureFromEnv(env = process.env) {
   return { connected: true, message: 'AI coach: Gemini connected (server-side tools, consent required per user)' };
 }
 
-module.exports = { configureFromEnv, createGeminiProvider, hasGeminiConsent, resolveModel, MAX_ROUNDS, TOTAL_BUDGET_MS };
+module.exports = { configureFromEnv, createGeminiProvider, hasGeminiConsent, resolveModel, basicProfile, MAX_ROUNDS, TOTAL_BUDGET_MS };

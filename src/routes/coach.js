@@ -36,7 +36,7 @@
 const express = require('express');
 const db = require('../db');
 const calc = require('../utils/calc');
-const { validate, asyncHandler } = require('../utils/http');
+const { validate, asyncHandler, HttpError } = require('../utils/http');
 const { planAndLimits, upgradeError } = require('../middleware/requirePlan');
 const { PLANS, nextPlanWithMore } = require('../utils/plans');
 const aiCoach = require('../services/aiCoach');
@@ -386,11 +386,51 @@ const BY_TOPIC = Object.fromEntries([...NEW_RULES, ...OLD_RULES].map((r) => [r.t
 // When the question is not understood, the screen it came from picks a helpful answer
 const CONTEXT_DEFAULT = { home: 'what_to_do_today', health: 'nutrition_today', fitness: 'steps_low', wealth: 'save_more' };
 
+// Optional chat history for the AI (same chat on the phone). Never stored:
+// it is only passed to the model for this one request.
+//   history: [{ role: 'user' | 'model', text: '...' }]  (<= 10 turns, each <= 1,000 chars)
+const MAX_HISTORY = 10;
+const MAX_HISTORY_CHARS = 1000;
+function cleanHistory(h) {
+  if (h === undefined || h === null) return [];
+  if (!Array.isArray(h)) throw new HttpError(400, 'Invalid input', ['history must be a list']);
+  if (h.length > MAX_HISTORY) throw new HttpError(400, 'Invalid input', [`history can have at most ${MAX_HISTORY} turns`]);
+  return h.map((t, i) => {
+    if (!t || typeof t !== 'object' || Array.isArray(t)) throw new HttpError(400, 'Invalid input', [`history[${i}] must be an object`]);
+    if (t.role !== 'user' && t.role !== 'model') throw new HttpError(400, 'Invalid input', [`history[${i}].role must be user or model`]);
+    if (typeof t.text !== 'string' || !t.text.trim()) throw new HttpError(400, 'Invalid input', [`history[${i}].text is required`]);
+    if (t.text.length > MAX_HISTORY_CHARS) throw new HttpError(400, 'Invalid input', [`history[${i}].text is too long (max ${MAX_HISTORY_CHARS})`]);
+    return { role: t.role, text: t.text.trim() };
+  });
+}
+
+// Personal / small-talk questions that are NOT about health or money data.
+// The rule-based coach answers these briefly instead of guessing a topic
+// from the screen (which used to dump today's numbers for "what's my name?").
+const NAME_RE = /\b(what(?:'?s| is) my name|whats my name|my name\s*\??$|who am i|do you know (?:my name|who i am)|mera naam|mera name|naa peru|na peru|nenu evaru)\b/i;
+const AGE_RE = /\b(how old am i|what(?:'?s| is) my age)\b/i;
+const GREETING_RE = /^\s*(hi+|hello+|hey+|hii+|namaste|namaskaram|thanks|thank you|thank u|ok|okay|good (?:morning|afternoon|evening|night))\s*[!.?]*\s*$/i;
+function personalTopic(q) {
+  if (NAME_RE.test(q)) return 'personal_name';
+  if (AGE_RE.test(q)) return 'personal_age';
+  if (GREETING_RE.test(q)) return 'greeting';
+  return null;
+}
+async function personalAnswer(topic, userId) {
+  const r = await db.get('SELECT u.name, p.age FROM users u LEFT JOIN profiles p ON p.user_id = u.id WHERE u.id = $1', [userId]);
+  const first = r && r.name ? String(r.name).trim().split(/\s+/)[0] : null;
+  if (topic === 'personal_name') return first ? `Your name is ${first}.` : "I don't have your name yet. You can add it in the You tab.";
+  if (topic === 'personal_age') return r && r.age ? `Your profile says you're ${r.age}.` : "Your age isn't in your profile yet. You can add it in the You tab.";
+  return `Hi${first ? ` ${first}` : ''}! Ask me anything about your health or money: steps, food, sleep, spending or savings.`;
+}
+const AI_UNREACHABLE = "I couldn't reach the AI just now — try again in a moment.";
+
 router.post('/', asyncHandler(async (req, res) => {
   const { question, context } = validate(req.body, {
     question: { type: 'string', required: true, maxLength: 300 },
     context: { type: 'string', oneOf: ['home', 'health', 'fitness', 'wealth'] },
   });
+  const history = cleanHistory(req.body ? req.body.history : undefined);
   const userId = req.user.id;
   const { plan, limits } = await planAndLimits(userId);
   // Rule-based allowance (Free only; null = unlimited)
@@ -411,9 +451,9 @@ router.post('/', asyncHandler(async (req, res) => {
   }
 
   const q = question.toLowerCase();
-  let rule = RULES.find((r) => r.match(q));
+  const personal = personalTopic(q);
+  let rule = personal ? null : RULES.find((r) => r.match(q));
   let guessed = false;
-  if (!rule && context) { rule = BY_TOPIC[CONTEXT_DEFAULT[context]]; guessed = true; }
 
   // AI first (paid plans, while today's AI allowance lasts), else rules.
   // Safety topics (mood / distress, eating-disorder signs, medical symptoms,
@@ -421,13 +461,29 @@ router.post('/', asyncHandler(async (req, res) => {
   const safety = Boolean(rule && SAFETY_TOPICS.includes(rule.topic));
   const { answer: aiAnswer, info: ai } = safety
     ? { answer: null, info: null }
-    : await aiCoach.tryAiAnswer({ userId, plan, question, context });
+    : await aiCoach.tryAiAnswer({ userId, plan, question, context, history });
   const meta = { plan, remaining_today, ai };
   if (aiAnswer) {
     // data.proposals: entries the AI suggests saving. Nothing is saved until
     // the app sends a proposal's confirmation_token to POST /api/coach/confirm.
     return res.json({ topic: 'ai', answer: String(aiAnswer.text).trim(), data: aiAnswer.data || null, context: context || null, guessed_from_context: false, engine: 'ai', ...meta });
   }
+
+  // Rule-based fallback. Personal questions get a short honest answer, never a data dump.
+  if (personal) {
+    return res.json({ topic: personal, answer: await personalAnswer(personal, userId), data: null, context: context || null, guessed_from_context: false, engine: 'rule_based', ...meta });
+  }
+  // Did we try the AI for this question (paid plan, model connected) and not get an answer?
+  const aiTried = Boolean(ai && ai.connected && ai.limit > 0);
+  if (!rule && aiTried) {
+    // Not a health/money question we can answer with rules: say so honestly
+    const answer = ai.limit_reached
+      ? "You've used today's AI answers. Without the AI I can only answer health and money questions, like your steps, food, sleep, spending or savings."
+      : AI_UNREACHABLE;
+    return res.json({ topic: 'unknown', answer, data: null, context: context || null, guessed_from_context: false, engine: 'rule_based', ...meta });
+  }
+  // No AI for this plan: the screen it came from picks a helpful answer, as before
+  if (!rule && context) { rule = BY_TOPIC[CONTEXT_DEFAULT[context]]; guessed = true; }
 
   if (!rule) {
     return res.json({

@@ -54,7 +54,7 @@ async function giveBack(userId) {
  *  -> { answer: { text } | null, info: { connected, model, limit, used, remaining, limit_reached, fell_back, upgrade_to } }
  * answer is null when the caller must use the rule-based coach.
  */
-async function tryAiAnswer({ userId, plan, question, context }) {
+async function tryAiAnswer({ userId, plan, question, context, history = [] }) {
   const lim = LIMITS[plan] || LIMITS.free;
   const limit = lim.ai_coach_per_day || 0;
   const info = {
@@ -92,7 +92,7 @@ async function tryAiAnswer({ userId, plan, question, context }) {
   let answer = null;
   let failed = false;
   try {
-    answer = await provider({ userId, question, context, model: aiModelFor(plan), plan });
+    answer = await provider({ userId, question, context, history, model: aiModelFor(plan), plan });
   } catch (e) {
     console.warn('AI coach failed, using rule-based answer:', String(e.message || e).slice(0, 240));
     answer = null;
