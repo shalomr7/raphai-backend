@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HeartPurse: Your AI Life Intelligence for Health, Money & Habits</title>
+<meta name="description" content="HeartPurse brings your health, money and habits into one private app with an AI coach, all-day step tracking, meal photo logging and smart budgets.">
+<meta property="og:title" content="HeartPurse: Health. Money. Habits.">
+<meta property="og:description" content="One private app for your health, money and habits, with HeartPurse AI.">
+<meta name="theme-color" content="#000000">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💛</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#000;--card:#1C1C1E;--card2:#2C2C2E;--border:#3A3A3C;--gold:#D4AF37;--goldS:rgba(212,175,55,.15);--text:#F5F5F0;--muted:#A1A1A6;--green:#34C759;--blue:#4EA8DE;--purple:#A78BFA;--red:#FF5A5F}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif;line-height:1.6;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+.wrap{max-width:1160px;margin:0 auto;padding:0 24px}
+.serif{font-family:'Playfair Display',Georgia,serif}
+.gold{color:var(--gold)}
+nav{position:sticky;top:0;z-index:50;backdrop-filter:blur(14px);background:rgba(0,0,0,.72);border-bottom:1px solid rgba(255,255,255,.06)}
+nav .wrap{display:flex;align-items:center;justify-content:space-between;height:68px}
+.logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:20px;letter-spacing:-.3px}
+.logo i{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#F3D77A,#D4AF37 55%,#9C7C1F);display:grid;place-items:center;font-style:normal;color:#000;font-size:17px}
+nav ul{display:flex;gap:28px;list-style:none;font-size:14px;color:var(--muted)}
+nav ul a:hover{color:var(--text)}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:12px 22px;border-radius:999px;font-weight:600;font-size:15px;transition:.2s}
+.btn-gold{background:var(--gold);color:#000}.btn-gold:hover{background:#E6C459;transform:translateY(-1px)}
+.btn-ghost{border:1px solid var(--border);color:var(--text)}.btn-ghost:hover{border-color:var(--gold)}
+.hero{position:relative;padding:90px 0 60px}
+.hero:before{content:"";position:absolute;inset:-200px 0 auto;height:700px;background:radial-gradient(600px 380px at 70% 30%,rgba(212,175,55,.18),transparent 70%),radial-gradient(500px 300px at 15% 10%,rgba(167,139,250,.10),transparent 70%);pointer-events:none}
+.hero .wrap{display:grid;grid-template-columns:1.05fr .95fr;gap:40px;align-items:center;position:relative}
+.pill{display:inline-flex;gap:8px;align-items:center;padding:6px 14px;border-radius:999px;background:var(--goldS);color:var(--gold);font-size:13px;font-weight:600;margin-bottom:22px}
+h1{font-size:clamp(40px,5.6vw,68px);line-height:1.04;letter-spacing:-1.5px;font-weight:800}
+h1 em{font-style:normal;background:linear-gradient(90deg,#F3D77A,#D4AF37);-webkit-background-clip:text;background-clip:text;color:transparent}
+.lead{color:var(--muted);font-size:19px;margin:22px 0 32px;max-width:540px}
+.cta{display:flex;gap:14px;flex-wrap:wrap}
+.trust{display:flex;gap:22px;margin-top:34px;color:var(--muted);font-size:13px;flex-wrap:wrap}
+.trust span:before{content:"✓ ";color:var(--gold)}
+/* phones */
+.phones{position:relative;height:620px}
+.phone{position:absolute;width:280px;height:580px;border-radius:44px;background:#0b0b0b;border:10px solid #1a1a1a;box-shadow:0 40px 80px rgba(0,0,0,.6),0 0 0 1px #333,0 0 60px rgba(212,175,55,.12);overflow:hidden;padding:34px 16px 16px}
+.phone:before{content:"";position:absolute;top:10px;left:50%;transform:translateX(-50%);width:80px;height:20px;border-radius:12px;background:#000}
+.p1{left:0;top:30px;transform:rotate(-5deg);z-index:1}
+.p2{right:0;top:0;transform:rotate(4deg);z-index:2}
+.scr{font-size:11px}
+.scr .hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.scr h4{font-size:15px;font-weight:700}
+.scr .mut{color:var(--muted)}
+.c{background:var(--card);border-radius:16px;padding:12px;margin-bottom:10px;border:1px solid #262628}
+.ring{width:118px;height:118px;border-radius:50%;margin:4px auto 8px;background:conic-gradient(var(--gold) 0 78%,#2C2C2E 78% 100%);display:grid;place-items:center}
+.ring div{width:96px;height:96px;border-radius:50%;background:var(--card);display:grid;place-items:center;text-align:center}
+.ring b{font-size:30px;display:block;line-height:1}
+.row{display:flex;gap:8px}.row .c{flex:1;margin:0}
+.k{font-size:16px;font-weight:700}
+.bar{height:6px;border-radius:6px;background:#2C2C2E;margin-top:6px;overflow:hidden}.bar i{display:block;height:100%;border-radius:6px}
+.tabs{display:flex;justify-content:space-around;position:absolute;bottom:12px;left:12px;right:12px;padding:8px;border-radius:18px;background:#0A0A0A;border:1px solid #222;font-size:9px;color:var(--muted)}
+.tabs .on{color:var(--gold)}
+.orb{position:absolute;right:20px;bottom:64px;width:42px;height:42px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#d9ccff,#A78BFA 50%,#5b43b8);box-shadow:0 0 22px rgba(167,139,250,.7)}
+.bub{padding:9px 11px;border-radius:14px;margin-bottom:8px;max-width:86%}
+.me{background:var(--gold);color:#000;margin-left:auto;border-bottom-right-radius:4px}
+.ai{background:var(--card2);border-bottom-left-radius:4px}
+section{padding:90px 0}
+.eyebrow{color:var(--gold);font-weight:700;font-size:13px;letter-spacing:2px;text-transform:uppercase}
+h2{font-size:clamp(30px,3.8vw,46px);line-height:1.12;letter-spacing:-1px;margin:12px 0 16px;font-weight:800}
+.sub{color:var(--muted);font-size:18px;max-width:640px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:48px}
+.f{background:linear-gradient(180deg,#141414,#0d0d0d);border:1px solid #232325;border-radius:22px;padding:28px;transition:.25s}
+.f:hover{border-color:rgba(212,175,55,.5);transform:translateY(-3px)}
+.ic{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;font-size:22px;margin-bottom:18px}
+.f h3{font-size:19px;margin-bottom:8px}.f p{color:var(--muted);font-size:15px}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center}
+.list{margin-top:26px;display:grid;gap:14px}
+.list div{display:flex;gap:14px;align-items:flex-start;color:var(--muted)}
+.list b{color:var(--text);display:block}
+.list .dot{flex:none;width:28px;height:28px;border-radius:9px;background:var(--goldS);color:var(--gold);display:grid;place-items:center;font-weight:800;font-size:13px}
+.solo{position:relative;height:600px}.solo .phone{left:50%;transform:translateX(-50%);top:0}
+.band{background:linear-gradient(180deg,#0a0a0a,#000);border-top:1px solid #151515;border-bottom:1px solid #151515}
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-top:44px}
+.st{padding:24px;border-radius:20px;border:1px solid #232325;background:#0e0e0e}
+.st .n{font-size:13px;color:var(--gold);font-weight:700}.st h4{font-size:17px;margin:8px 0 6px}.st p{color:var(--muted);font-size:14px}
+.privacy{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:40px}
+.pv{text-align:center;padding:26px 18px;border-radius:20px;background:#0e0e0e;border:1px solid #232325}
+.pv div{font-size:28px;margin-bottom:10px}.pv b{display:block;margin-bottom:4px}.pv span{color:var(--muted);font-size:14px}
+.founder{display:grid;grid-template-columns:auto 1fr;gap:40px;align-items:center;padding:44px;border-radius:28px;background:radial-gradient(500px 240px at 0% 0%,rgba(212,175,55,.14),transparent 70%),#0e0e0e;border:1px solid #2a2a2a}
+.avatar{width:150px;height:150px;border-radius:50%;background:linear-gradient(135deg,#F3D77A,#D4AF37 55%,#7d6318);display:grid;place-items:center;font-size:52px;font-weight:800;color:#000;box-shadow:0 0 0 6px #000,0 0 0 7px rgba(212,175,55,.5)}
+.founder blockquote{font-size:22px;line-height:1.5;margin:14px 0 18px}
+.founder .who b{font-size:18px}.founder .who span{color:var(--muted);display:block}
+.final{text-align:center;padding:100px 24px;border-radius:32px;margin:0 auto;background:radial-gradient(600px 300px at 50% 0%,rgba(212,175,55,.2),transparent 70%),#0b0b0b;border:1px solid #232325}
+.final .cta{justify-content:center;margin-top:30px}
+footer{padding:50px 0 40px;color:var(--muted);font-size:14px;border-top:1px solid #151515;margin-top:90px}
+footer .wrap{display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap}
+footer .links{display:flex;gap:22px;flex-wrap:wrap}footer a:hover{color:var(--gold)}
+.reveal{opacity:0;transform:translateY(24px);transition:opacity .7s,transform .7s}.reveal.in{opacity:1;transform:none}
+@media(max-width:920px){.hero .wrap,.split{grid-template-columns:1fr}.phones{height:600px;max-width:520px;margin:0 auto;width:100%}.grid,.steps,.privacy{grid-template-columns:1fr 1fr}nav ul{display:none}.founder{grid-template-columns:1fr;text-align:center}.avatar{margin:0 auto}}
+@media(max-width:560px){.grid,.steps,.privacy{grid-template-columns:1fr}.phones{height:560px}.p1{left:-20px;transform:rotate(-5deg) scale(.86)}.p2{right:-20px;transform:rotate(4deg) scale(.86)}section{padding:64px 0}}
+</style>
+</head>
+<body>
+<nav><div class="wrap">
+  <a class="logo" href="#"><i>♥</i>HeartPurse</a>
+  <ul><li><a href="#features">Features</a></li><li><a href="#ai">HeartPurse AI</a></li><li><a href="#how">How it works</a></li><li><a href="#privacy">Privacy</a></li><li><a href="#founder">About</a></li></ul>
+  <a class="btn btn-gold" href="#download">Get the app</a>
+</div></nav>
+
+<header class="hero"><div class="wrap">
+  <div>
+    <div class="pill">✦ Your AI Life Intelligence</div>
+    <h1>Health. Money. Habits.<br><em>One private app.</em></h1>
+    <p class="lead">HeartPurse tracks your steps all day, logs meals from a photo, keeps your budgets and bills in check, and gives you one simple score to see how your life is really going.</p>
+    <div class="cta"><a class="btn btn-gold" href="#download">Coming soon on Google Play</a><a class="btn btn-ghost" href="#features">Explore features</a></div>
+    <div class="trust"><span>We never sell your data</span><span>No loans, ever</span><span>Export or delete anytime</span></div>
+  </div>
+  <div class="phones">
+    <div class="phone p1"><div class="scr">
+      <div class="hd"><div><div class="mut">Good morning</div><h4>Today</h4></div><span class="gold">●</span></div>
+      <div class="c" style="text-align:center"><div class="mut">HeartScore ⓘ</div>
+        <div class="ring"><div><span><b class="gold">78</b><span class="mut">Good</span></span></div></div>
+        <div class="mut">Sleep, movement and spending are on track</div></div>
+      <div class="row"><div class="c"><div class="mut">Steps</div><div class="k" style="color:var(--blue)">8,412</div><div class="bar"><i style="width:84%;background:var(--blue)"></i></div></div>
+      <div class="c"><div class="mut">Calories</div><div class="k" style="color:var(--green)">1,640</div><div class="bar"><i style="width:68%;background:var(--green)"></i></div></div></div>
+      <div class="c" style="margin-top:10px"><div class="mut">Remaining budget</div><div class="k gold">₹6,250</div><div class="bar"><i style="width:58%;background:var(--gold)"></i></div></div>
+      <div class="orb"></div>
+      <div class="tabs"><span class="on">● Home</span><span>Health</span><span>Money</span><span>You</span></div>
+    </div></div>
+    <div class="phone p2"><div class="scr">
+      <div class="hd"><h4>Snap your meal</h4><span class="mut">✕</span></div>
+      <div class="c" style="height:150px;padding:0;overflow:hidden;background:radial-gradient(circle at 50% 55%,#c98a3a 0 18%,#e8d6a8 19% 30%,#6aa84f 31% 36%,#f4f1e8 37% 52%,#2a2a2a 53%)"></div>
+      <div class="c"><div class="hd" style="margin:0 0 6px"><b>Chicken biryani</b><span class="gold">320 g</span></div>
+        <div class="row" style="gap:6px"><div class="c" style="padding:8px;text-align:center"><b class="gold">540</b><div class="mut">kcal</div></div><div class="c" style="padding:8px;text-align:center"><b>28 g</b><div class="mut">protein</div></div><div class="c" style="padding:8px;text-align:center"><b>62 g</b><div class="mut">carbs</div></div></div></div>
+      <div class="c"><div class="hd" style="margin:0"><b>Raita</b><span class="mut">100 g · 60 kcal</span></div></div>
+      <div class="c" style="background:var(--purpleSoft,rgba(167,139,250,.14));border-color:rgba(167,139,250,.35)"><span style="color:var(--purple)">✦ HeartPurse AI</span> <span class="mut">estimated this. Edit before saving.</span></div>
+      <div style="background:var(--gold);color:#000;text-align:center;border-radius:14px;padding:11px;font-weight:700;margin-top:6px">Save to today</div>
+    </div></div>
+  </div>
+</div></header>
+
+<section id="features"><div class="wrap">
+  <div class="reveal"><div class="eyebrow">Features</div><h2>Everything that matters,<br>in one calm place.</h2><p class="sub">Built for India, designed to be easy, and quietly smart in the background.</p></div>
+  <div class="grid">
+    <div class="f reveal"><div class="ic" style="background:var(--goldS)">♥</div><h3>HeartScore</h3><p>One score across sleep, movement, food, money and habits, with a clear explanation of what moved it.</p></div>
+    <div class="f reveal"><div class="ic" style="background:rgba(78,168,222,.14)">👟</div><h3>All-day steps</h3><p>Counts steps from your phone all day, even after a restart, with no watch needed.</p></div>
+    <div class="f reveal"><div class="ic" style="background:rgba(52,199,89,.14)">📸</div><h3>Snap your meal</h3><p>Take a photo and get food, grams, calories and macros in seconds. You review it before it's saved.</p></div>
+    <div class="f reveal"><div class="ic" style="background:rgba(167,139,250,.14)">✦</div><h3>HeartPurse AI coach</h3><p>A respectful coach that remembers your goals and gives practical, personal advice on health and money.</p></div>
+    <div class="f reveal"><div class="ic" style="background:var(--goldS)">₹</div><h3>Money made simple</h3><p>Budgets, bill reminders, bill splitting, and SIP and EMI calculators, with no loans and no upselling.</p></div>
+    <div class="f reveal"><div class="ic" style="background:rgba(78,168,222,.14)">⌚</div><h3>Works with your watch</h3><p>Connect your smartwatch or band through Health Connect to bring in sleep, workouts and more.</p></div>
+  </div>
+</div></section>
+
+<section id="ai" class="band"><div class="wrap split">
+  <div class="solo reveal"><div class="phone"><div class="scr">
+    <div class="hd"><h4><span style="color:var(--purple)">✦</span> HeartPurse AI</h4><span class="mut">⋯</span></div>
+    <div class="bub ai">Morning! You slept 6h 10m and walked 9,200 steps yesterday. Want a quick plan for today?</div>
+    <div class="bub me">Yes, and I overspent on food this week 😅</div>
+    <div class="bub ai">No stress. You have ₹1,850 left for food until Sunday. Try home lunch twice, and a 20-minute walk after dinner to hit 8,000 steps.</div>
+    <div class="bub me">Remind me at 8 pm?</div>
+    <div class="bub ai">Done ✓ I'll nudge you at 8:00 pm.</div>
+    <div class="c" style="position:absolute;left:12px;right:12px;bottom:14px;margin:0;display:flex;justify-content:space-between"><span class="mut">Ask anything…</span><span class="gold">➤</span></div>
+  </div></div></div>
+  <div class="reveal"><div class="eyebrow">HeartPurse AI</div><h2>A coach that actually knows your day.</h2><p class="sub">HeartPurse AI connects your steps, meals, sleep and spending, so its advice fits your real life, not a generic plan.</p>
+    <div class="list">
+      <div><span class="dot">1</span><span><b>Daily priorities</b>The two or three things that will matter most today.</span></div>
+      <div><span class="dot">2</span><span><b>Remembers your goals</b>Your coach keeps the context, so you don't repeat yourself.</span></div>
+      <div><span class="dot">3</span><span><b>Always respectful</b>Encouraging, never judgemental about age, body or background.</span></div>
+    </div></div>
+</div></section>
+
+<section id="how"><div class="wrap">
+  <div class="reveal" style="text-align:center"><div class="eyebrow">How it works</div><h2>Set up in two minutes.</h2></div>
+  <div class="steps">
+    <div class="st reveal"><div class="n">01</div><h4>Sign in</h4><p>Use your Google account or email.</p></div>
+    <div class="st reveal"><div class="n">02</div><h4>Set your goals</h4><p>Steps, weight, budget: just what you care about.</p></div>
+    <div class="st reveal"><div class="n">03</div><h4>Live normally</h4><p>Steps count on their own; snap meals and add spends.</p></div>
+    <div class="st reveal"><div class="n">04</div><h4>See the picture</h4><p>Your HeartScore and AI tips show what to do next.</p></div>
+  </div>
+</div></section>
+
+<section id="privacy" class="band"><div class="wrap">
+  <div class="reveal" style="text-align:center"><div class="eyebrow">Privacy first</div><h2>Your life. Your data.</h2><p class="sub" style="margin:0 auto">Health and money are personal. HeartPurse is built to respect that.</p></div>
+  <div class="privacy">
+    <div class="pv reveal"><div>🔒</div><b>Never sold</b><span>We never sell your personal data.</span></div>
+    <div class="pv reveal"><div>📷</div><b>Photos not kept</b><span>Meal photos are analysed, not stored.</span></div>
+    <div class="pv reveal"><div>⬇️</div><b>Export anytime</b><span>Download all of your data.</span></div>
+    <div class="pv reveal"><div>🗑️</div><b>Delete anytime</b><span>Remove your account and data in a tap.</span></div>
+  </div>
+</div></section>
+
+<section id="founder"><div class="wrap">
+  <div class="founder reveal">
+    <div class="avatar serif">SR</div>
+    <div><div class="eyebrow">From the founder</div>
+      <blockquote class="serif">“I built HeartPurse because a healthy life and a healthy wallet go together. You shouldn't need five apps to look after both.”</blockquote>
+      <div class="who"><b>Shalem Raj R</b><span>Founder &amp; CEO, HeartPurse</span></div></div>
+  </div>
+</div></section>
+
+<section id="download" style="padding-top:0"><div class="wrap">
+  <div class="final reveal"><div class="eyebrow">Coming soon</div><h2>Start living in balance.</h2><p class="sub" style="margin:0 auto">HeartPurse is coming soon to Google Play for Android. Questions or early access? We'd love to hear from you.</p>
+    <div class="cta"><a class="btn btn-gold" href="mailto:support@heartpurse.com?subject=HeartPurse%20early%20access">Request early access</a><a class="btn btn-ghost" href="mailto:support@heartpurse.com">support@heartpurse.com</a></div></div>
+</div></section>
+
+<footer><div class="wrap">
+  <div><a class="logo" href="#"><i>♥</i>HeartPurse</a><p style="margin-top:12px">© <span id="y">2026</span> HeartPurse. Made in India.</p></div>
+  <div class="links"><a href="https://raphai-backend.onrender.com/privacy">Privacy Policy</a><a href="https://raphai-backend.onrender.com/terms">Terms</a><a href="https://raphai-backend.onrender.com/delete-account">Delete account</a><a href="mailto:support@heartpurse.com">Contact</a></div>
+</div></footer>
+
+<script>
+document.getElementById('y').textContent=new Date().getFullYear();
+const io=new IntersectionObserver(e=>e.forEach(x=>{if(x.isIntersecting){x.target.classList.add('in');io.unobserve(x.target)}}),{threshold:.12});
+document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+</script>
+</body>
+</html>
