@@ -7,7 +7,9 @@
 // GET  /api/auth/me        -> who am I? (needs token)
 // POST /api/auth/logout-all -> every token issued so far stops working
 // DELETE /api/auth/me      -> delete my account and ALL my data (needs token
-//                             + { "password": "..." } to confirm)
+//                             + { "password": "..." } to confirm; Google-only
+//                             accounts send { "google_id_token": "..." })
+// Google sign-in, link and unlink: routes/googleAuth.js
 // Passwords are never stored. We store a bcrypt "hash" (a one-way scramble).
 // ------------------------------------------------------------
 
@@ -19,6 +21,7 @@ const { validate, HttpError, asyncHandler } = require('../utils/http');
 const { logSecurity } = require('../services/securityLog');
 const { deleteAccount } = require('../services/account');
 const { TERMS_VERSION } = require('./consents');
+const { verifyGoogleIdToken } = require('../services/googleIdentity');
 const { rateLimit, hit, peek, clear, tooMany, byIp } = require('../middleware/rateLimit');
 
 const router = express.Router();
@@ -91,7 +94,8 @@ router.post('/login', loginIpLimit, asyncHandler(async (req, res) => {
   if (locked.limited) throw tooMany(locked.resetMs, 'Too many wrong passwords for this account. Please wait 15 minutes and try again.');
 
   const row = await db.get('SELECT * FROM users WHERE email = $1', [email]);
-  const ok = await bcrypt.compare(body.password, row ? row.password_hash : DUMMY_HASH);
+  // Google-only accounts have no password hash: compare against the dummy and fail
+  const ok = (await bcrypt.compare(body.password, row && row.password_hash ? row.password_hash : DUMMY_HASH)) && Boolean(row && row.password_hash);
 
   // Same message for "no such email" and "wrong password" (safer)
   if (!row || !ok) {
@@ -116,11 +120,20 @@ router.get('/me', requireAuth, asyncHandler(async (req, res) => {
 // by accident (or with a stolen phone that is still logged in).
 // The actual deleting is in services/account.js (shared with the public
 // /delete-account web page).
+// Google-only accounts (no password) confirm with a fresh Google ID token
+// instead: { "google_id_token": "..." } for the Google account linked to them.
 router.delete('/me', requireAuth, asyncHandler(async (req, res) => {
-  const { password } = validate(req.body, { password: { type: 'string', required: true, maxLength: 100 } });
   const row = await db.get('SELECT * FROM users WHERE id = $1', [req.user.id]);
   if (!row) throw new HttpError(404, 'User not found');
-  if (!(await bcrypt.compare(password, row.password_hash))) throw new HttpError(401, 'Wrong password');
+  if (!row.password_hash) {
+    const { google_id_token: idToken } = validate(req.body, { google_id_token: { type: 'string', required: true, maxLength: 4096 } });
+    const g = await verifyGoogleIdToken(idToken);
+    const link = await db.get("SELECT id FROM user_identities WHERE user_id = $1 AND provider = 'google' AND provider_sub = $2", [row.id, g.sub]);
+    if (!link) throw new HttpError(401, 'Please confirm with the Google account linked to HeartPurse');
+  } else {
+    const { password } = validate(req.body, { password: { type: 'string', required: true, maxLength: 100 } });
+    if (!(await bcrypt.compare(password, row.password_hash))) throw new HttpError(401, 'Wrong password');
+  }
   await deleteAccount(row.id, { req });
   res.json({ deleted: true });
 }));

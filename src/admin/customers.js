@@ -81,6 +81,14 @@ function accountStatus(r) {
   return 'Active';
 }
 
+// 'Email + password', 'Google', or both (users.password_hash is NULL for Google-only accounts)
+function signInMethod(r) {
+  const m = [];
+  if (r.has_password !== false) m.push('Email + password');
+  if (Array.isArray(r.providers) && r.providers.includes('google')) m.push('Google');
+  return m.join(', ') || 'None';
+}
+
 function toCustomer(r) {
   const consents = consentSummary(r.consents);
   return {
@@ -92,7 +100,7 @@ function toCustomer(r) {
     gender: r.sex ? (r.sex === 'male' ? 'Male' : r.sex === 'female' ? 'Female' : String(r.sex)) : NOT_PROVIDED,
     age: r.age != null ? r.age : NOT_PROVIDED,
     date_of_birth: NOT_COLLECTED,  // only age is stored
-    sign_in_method: 'Email + password',
+    sign_in_method: signInMethod(r),
     plan: planLabel(r),
     plan_group: classify(r) === 'paid' ? r.plan : classify(r),
     subscription_status: subStatus(r),
@@ -110,6 +118,8 @@ function toCustomer(r) {
 const BASE_SQL = `
   WITH st AS (${SUB_STATE_SQL})
   SELECT u.id, u.name, u.email, u.created_at, u.last_active_at, u.tokens_valid_after,
+         (u.password_hash IS NOT NULL) AS has_password,
+         (SELECT array_agg(i.provider ORDER BY i.provider) FROM user_identities i WHERE i.user_id = u.id) AS providers,
          p.sex, p.age,
          st.plan, st.period, st.status, st.expires_at, st.auto_renew, st.source, st.trial_used, st.in_trial, st.test_purchase, st.is_active,
          c.consents

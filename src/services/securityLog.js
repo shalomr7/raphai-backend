@@ -11,6 +11,8 @@
 const db = require('../db');
 
 const EVENTS = ['login_success', 'login_failed', 'password_change', 'account_deleted', 'export', 'logout_all', 'password_reset_requested', 'password_reset',
+  // Google sign-in (routes/googleAuth.js)
+  'google_signup', 'google_auto_linked', 'google_linked', 'google_unlinked', 'google_login_rejected',
   // Admin dashboard (routes/admin.js). actor_id = the admin, user_id = the customer concerned.
   'admin_login_failed', 'admin_second_step_sent', 'admin_login_success', 'admin_denied', 'admin_view',
   'admin_customer_list', 'admin_customer_search', 'admin_customer_view', 'admin_phone_reveal',

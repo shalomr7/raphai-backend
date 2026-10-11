@@ -45,6 +45,7 @@ async function register(name, email) {
 // Every route behind requireAuth (method, path). :id routes use 1.
 const PROTECTED = [
   ['GET', '/api/auth/me'], ['DELETE', '/api/auth/me'], ['POST', '/api/auth/logout-all'],
+  ['GET', '/api/auth/identities'], ['POST', '/api/auth/google/link'], ['DELETE', '/api/auth/google/unlink'],
   ['GET', '/api/profile'], ['PUT', '/api/profile'],
   ['GET', '/api/health/targets'], ['GET', '/api/health/today'], ['PUT', '/api/health/steps'], ['GET', '/api/health/steps'],
   ['GET', '/api/health/workouts/met-table'], ['POST', '/api/health/workouts'], ['GET', '/api/health/workouts'], ['DELETE', '/api/health/workouts/1'],

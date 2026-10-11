@@ -24,8 +24,9 @@ const { logSecurity } = require('./securityLog');
 const DUMMY_HASH = bcrypt.hashSync('not-a-real-password', 10);
 async function checkCredentials(email, password) {
   const row = await db.get('SELECT * FROM users WHERE email = $1', [String(email || '').trim().toLowerCase()]);
-  const ok = await bcrypt.compare(String(password || ''), row ? row.password_hash : DUMMY_HASH);
-  return row && ok ? row : null;
+  // Google-only accounts (no password hash) never match
+  const ok = await bcrypt.compare(String(password || ''), row && row.password_hash ? row.password_hash : DUMMY_HASH);
+  return row && row.password_hash && ok ? row : null;
 }
 
 async function deleteAccount(userId, { req } = {}) {

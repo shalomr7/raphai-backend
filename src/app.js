@@ -69,6 +69,7 @@ function createApp() {
   app.use('/', deleteAccountRoutes); // GET + POST /delete-account (web page, no app needed)
   app.use('/api/auth', authRoutes);
   app.use('/api/auth', require('./routes/passwordReset'));
+  app.use('/api/auth', require('./routes/googleAuth')); // POST /google (public); identities, google/link, google/unlink need a login
   app.use('/api/plans', plansRouter);
   // Google Play Real-time Developer Notifications (Pub/Sub push). Public, but
   // protected by ?secret= (and optionally Pub/Sub's signed token).

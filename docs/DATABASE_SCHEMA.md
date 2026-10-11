@@ -32,3 +32,6 @@ Postgres 17 (Supabase Mumbai). Source of truth: `src/migrations/`. Dates are TEX
 
 Rules: forward-only, additive, never edit an applied migration. Phase 2: switch reads to paise, then `ALTER COLUMN ... DROP EXPRESSION`.
 Upgrade path tested: DB created by e8b747d code + data -> new init applies 001–006, data intact, paise backfilled, RLS on, second init applies 0.
+
+## 009_user_identities (Google sign-in)
+`user_identities` (user_id FK cascade, provider `google`, provider_sub unique per provider, email, email_verified, created_at, last_used_at; RLS owner_rows). `users.password_hash` nullable (Google-only accounts). Reversible: see docs/GOOGLE_SIGN_IN.md.

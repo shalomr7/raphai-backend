@@ -51,3 +51,7 @@ services:
         sync: false
       - key: GOOGLE_RTDN_SERVICE_ACCOUNT_EMAIL
         sync: false
+      # ---- Google sign-in (Android) ----
+      # OAuth WEB client id(s), comma-separated. Unset -> /api/auth/google answers 503.
+      - key: GOOGLE_WEB_CLIENT_ID
+        sync: false
