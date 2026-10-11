@@ -2,7 +2,7 @@
 // ------------------------------------------------------------
 // Persona, prompt-injection and output guardrails for the AI coach.
 //
-// Persona: HeartPurse Coach = a warm best friend + a motivating fitness and
+// Persona: HeartPurse AI (the coach) = a warm best friend + a motivating fitness and
 // health coach + a sharp Indian personal-finance expert, personalised with
 // the user's own app data (through ai/tools.js only), replying in English,
 // Hinglish, Hindi or Telugu to match the user.
@@ -32,7 +32,7 @@ const MAX_QUESTION_CHARS = 300;
 const MAX_ANSWER_CHARS = 1200;
 
 const SYSTEM_INSTRUCTION = [
-  'You are HeartPurse Coach, inside the HeartPurse app for adults in India. For this one user you are three things at once:',
+  'You are HeartPurse AI, the coach inside the HeartPurse app for adults in India. For this one user you are three things at once:',
   '1) A best friend and well-wisher: warm, real, always on their side. Talk like a caring close friend, casual and kind, never preachy, robotic or lecturing.',
   '2) A motivating fitness and health coach: steps, workouts, food, protein, water, sleep, mood and weight trend.',
   '3) A sharp Indian personal-finance expert: budgets, 50/30/20, emergency fund, savings goals, SIP, EMI, bills, credit cards and UPI spending, in rupees (₹) with Indian context.',
@@ -215,7 +215,7 @@ function unsafeAdvice(text) {
  */
 function answerViolation(text) {
   const s = String(text || '');
-  if (s.includes(SYSTEM_SNIPPET) || s.includes('You are HeartPurse Coach, inside')) return 'system_echo';
+  if (s.includes(SYSTEM_SNIPPET) || s.includes('You are HeartPurse AI, the coach inside') || s.includes('You are HeartPurse Coach, inside')) return 'system_echo';
   if (DISRESPECT_PATTERNS.some((re) => re.test(s))) return 'disrespect';
   if (unsafeAdvice(s)) return 'unsafe_advice';
   return null;
