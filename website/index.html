@@ -96,12 +96,35 @@ footer .links{display:flex;gap:22px;flex-wrap:wrap}footer a:hover{color:var(--go
 .reveal{opacity:0;transform:translateY(24px);transition:opacity .7s,transform .7s}.reveal.in{opacity:1;transform:none}
 @media(max-width:920px){.hero .wrap,.split{grid-template-columns:1fr}.phones{height:600px;max-width:520px;margin:0 auto;width:100%}.grid,.steps,.privacy{grid-template-columns:1fr 1fr}nav ul{display:none}.founder{grid-template-columns:1fr;text-align:center}.avatar{margin:0 auto}}
 @media(max-width:560px){.grid,.steps,.privacy{grid-template-columns:1fr}.phones{height:560px}.p1{left:-20px;transform:rotate(-5deg) scale(.86)}.p2{right:-20px;transform:rotate(4deg) scale(.86)}section{padding:64px 0}}
+
+.demo{display:grid;grid-template-columns:1fr auto;gap:56px;align-items:center;margin-top:44px}
+.dtabs{display:grid;gap:12px}
+.dt{display:flex;gap:16px;align-items:flex-start;text-align:left;padding:18px 20px;border-radius:18px;border:1px solid #232325;background:#0e0e0e;color:var(--text);cursor:pointer;font:inherit;transition:.25s;position:relative;overflow:hidden}
+.dt:hover{border-color:#444}.dt.on{border-color:var(--gold);background:linear-gradient(90deg,rgba(212,175,55,.12),#0e0e0e)}
+.dt .ic{margin:0;flex:none;width:40px;height:40px;font-size:18px}
+.dt b{display:block;font-size:16px}.dt span{color:var(--muted);font-size:14px}
+.dt .prog{position:absolute;left:0;bottom:0;height:3px;background:var(--gold);width:0}
+.dt.on .prog{animation:prog 6s linear forwards}@keyframes prog{to{width:100%}}
+.dphone{position:relative;width:300px;height:600px}.dphone .phone{position:relative;width:300px;height:600px}
+.sc{position:absolute;inset:34px 16px 16px;opacity:0;transform:translateY(10px);transition:.45s;pointer-events:none}.sc.on{opacity:1;transform:none}
+.scan{position:relative;height:160px;border-radius:16px;overflow:hidden;margin-bottom:10px;background:radial-gradient(circle at 50% 55%,#c98a3a 0 18%,#e8d6a8 19% 30%,#6aa84f 31% 36%,#f4f1e8 37% 52%,#2a2a2a 53%)}
+.scan:after{content:"";position:absolute;left:0;right:0;height:40px;background:linear-gradient(180deg,transparent,rgba(212,175,55,.55),transparent);animation:scan 1.6s ease-in-out infinite}
+@keyframes scan{0%{top:-40px}100%{top:160px}}
+.pop{opacity:0;transform:translateY(8px)}.sc.on .pop{animation:pop .5s forwards}.sc.on .d1{animation-delay:1.2s}.sc.on .d2{animation-delay:1.8s}.sc.on .d3{animation-delay:2.4s}.sc.on .d4{animation-delay:3s}
+@keyframes pop{to{opacity:1;transform:none}}
+.walk{font-size:30px;font-weight:800;color:var(--blue);text-align:center}
+.uniq{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:44px}
+.u{padding:30px;border-radius:24px;background:radial-gradient(300px 160px at 0 0,rgba(212,175,55,.12),transparent 70%),#0e0e0e;border:1px solid #2a2a2a}
+.u .tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:1px;color:#000;background:var(--gold);padding:3px 10px;border-radius:999px;margin-bottom:14px}
+.u h3{font-size:20px;margin-bottom:8px}.u p{color:var(--muted);font-size:15px}
+@media(max-width:920px){.demo{grid-template-columns:1fr}.dphone{margin:0 auto}.uniq{grid-template-columns:1fr}}
+@media(max-width:560px){.dphone,.dphone .phone{width:280px;height:580px}}
 </style>
 </head>
 <body>
 <nav><div class="wrap">
   <a class="logo" href="#"><i>♥</i>HeartPurse</a>
-  <ul><li><a href="#features">Features</a></li><li><a href="#ai">HeartPurse AI</a></li><li><a href="#how">How it works</a></li><li><a href="#privacy">Privacy</a></li><li><a href="#founder">About</a></li></ul>
+  <ul><li><a href="#demo">Live demo</a></li><li><a href="#unique">Why HeartPurse</a></li><li><a href="#features">Features</a></li><li><a href="#ai">HeartPurse AI</a></li><li><a href="#how">How it works</a></li><li><a href="#privacy">Privacy</a></li><li><a href="#founder">About</a></li></ul>
   <a class="btn btn-gold" href="#download">Get the app</a>
 </div></nav>
 
@@ -136,6 +159,70 @@ footer .links{display:flex;gap:22px;flex-wrap:wrap}footer a:hover{color:var(--go
     </div></div>
   </div>
 </div></header>
+
+
+<section id="demo" class="band"><div class="wrap">
+  <div class="reveal" style="text-align:center"><div class="eyebrow">Try it live</div><h2>See HeartPurse in action.</h2><p class="sub" style="margin:0 auto">Tap a feature and watch the app work. This is a preview of the real screens.</p></div>
+  <div class="demo">
+    <div class="dtabs">
+      <button class="dt on" data-s="0"><span class="ic" style="background:var(--goldS)">♥</span><div><b>Your HeartScore</b><span>Health and money combined into one daily score.</span></div><i class="prog"></i></button>
+      <button class="dt" data-s="1"><span class="ic" style="background:rgba(52,199,89,.14)">📸</span><div><b>Snap your meal</b><span>A photo becomes calories and macros in seconds.</span></div><i class="prog"></i></button>
+      <button class="dt" data-s="2"><span class="ic" style="background:rgba(78,168,222,.14)">👟</span><div><b>Steps without a watch</b><span>Your phone counts every step, all day.</span></div><i class="prog"></i></button>
+      <button class="dt" data-s="3"><span class="ic" style="background:var(--goldS)">₹</span><div><b>Split a bill</b><span>Dinner with friends, settled in a tap.</span></div><i class="prog"></i></button>
+      <button class="dt" data-s="4"><span class="ic" style="background:rgba(167,139,250,.14)">✦</span><div><b>Ask HeartPurse AI</b><span>Advice that knows both your body and your budget.</span></div><i class="prog"></i></button>
+    </div>
+    <div class="dphone"><div class="phone"><div class="scr">
+      <div class="sc on">
+        <div class="hd"><div><div class="mut">Today</div><h4>HeartScore</h4></div><span class="gold">ⓘ</span></div>
+        <div class="c" style="text-align:center"><div class="ring"><div><span><b class="gold" data-count="78">0</b><span class="mut">Good</span></span></div></div></div>
+        <div class="c pop d1"><div class="hd" style="margin:0"><span>😴 Sleep</span><b style="color:var(--green)">7h 05m</b></div></div>
+        <div class="c pop d2"><div class="hd" style="margin:0"><span>👟 Movement</span><b style="color:var(--blue)">8,412 steps</b></div></div>
+        <div class="c pop d3"><div class="hd" style="margin:0"><span>🍽️ Food</span><b style="color:var(--green)">1,640 kcal</b></div></div>
+        <div class="c pop d4"><div class="hd" style="margin:0"><span>₹ Spending</span><b class="gold">On budget</b></div></div>
+      </div>
+      <div class="sc">
+        <div class="hd"><h4>Snap your meal</h4><span class="mut">✕</span></div>
+        <div class="scan"></div>
+        <div class="mut pop d1" style="margin-bottom:8px"><span style="color:var(--purple)">✦</span> HeartPurse AI found 2 items</div>
+        <div class="c pop d2"><div class="hd" style="margin:0"><b>Chicken biryani</b><span class="gold">320 g · 540 kcal</span></div></div>
+        <div class="c pop d3"><div class="hd" style="margin:0"><b>Raita</b><span class="mut">100 g · 60 kcal</span></div></div>
+        <div class="pop d4" style="background:var(--gold);color:#000;text-align:center;border-radius:14px;padding:11px;font-weight:700">Review &amp; save</div>
+      </div>
+      <div class="sc">
+        <div class="hd"><h4>Steps</h4><span class="mut">Phone sensor</span></div>
+        <div class="c" style="text-align:center;padding:22px 12px"><div class="walk"><span data-walk>7,950</span></div><div class="mut">steps today · goal 10,000</div><div class="bar" style="height:8px"><i data-walkbar style="width:79%;background:var(--blue);transition:width .3s"></i></div></div>
+        <div class="row"><div class="c"><div class="mut">Distance</div><div class="k">5.9 km</div></div><div class="c"><div class="mut">Active</div><div class="k">68 min</div></div></div>
+        <div class="c pop d2" style="margin-top:10px"><span style="color:var(--green)">✓</span> <span class="mut">Keeps counting after a restart. No watch needed.</span></div>
+        <div class="c pop d3"><span>⌚</span> <span class="mut">Got a watch? Connect it via Health Connect.</span></div>
+      </div>
+      <div class="sc">
+        <div class="hd"><h4>Split bill</h4><span class="gold">Dinner</span></div>
+        <div class="c" style="text-align:center"><div class="mut">Total</div><div class="k gold" style="font-size:26px">₹2,400</div><div class="mut">4 people · equal split</div></div>
+        <div class="c pop d1"><div class="hd" style="margin:0"><span>You</span><b>₹600 · paid</b></div></div>
+        <div class="c pop d2"><div class="hd" style="margin:0"><span>Ravi</span><b class="gold">owes ₹600</b></div></div>
+        <div class="c pop d3"><div class="hd" style="margin:0"><span>Priya</span><b class="gold">owes ₹600</b></div></div>
+        <div class="c pop d4"><div class="hd" style="margin:0"><span>Kiran</span><b class="gold">owes ₹600</b></div></div>
+      </div>
+      <div class="sc">
+        <div class="hd"><h4><span style="color:var(--purple)">✦</span> HeartPurse AI</h4><span class="mut">⋯</span></div>
+        <div class="bub me pop d1">Can I order pizza tonight?</div>
+        <div class="bub ai pop d2">You've got ₹1,850 left for food this week and 420 kcal left today. 🍕</div>
+        <div class="bub ai pop d3">Go for 2 slices with a salad, about ₹350. Or cook at home and save it for the weekend. Your call!</div>
+        <div class="bub me pop d4">2 slices it is 😄</div>
+      </div>
+      <div class="orb"></div>
+    </div></div></div>
+  </div>
+</div></section>
+
+<section id="unique"><div class="wrap">
+  <div class="reveal"><div class="eyebrow">Only on HeartPurse</div><h2>Why HeartPurse is different.</h2><p class="sub">Other apps track your health <em>or</em> your money. HeartPurse is built around how they affect each other.</p></div>
+  <div class="uniq">
+    <div class="u reveal"><span class="tag">UNIQUE</span><h3>Health + money, one score</h3><p>HeartScore blends sleep, steps, food and spending into one number you can actually act on.</p></div>
+    <div class="u reveal"><span class="tag">UNIQUE</span><h3>An AI that sees the whole you</h3><p>HeartPurse AI weighs your calories and your budget together, so its advice works in real life.</p></div>
+    <div class="u reveal"><span class="tag">BUILT FOR INDIA</span><h3>Indian food, Indian money</h3><p>Biryani, dosa and dal recognised from a photo; rupee budgets, bill splits and SIP and EMI planning.</p></div>
+  </div>
+</div></section>
 
 <section id="features"><div class="wrap">
   <div class="reveal"><div class="eyebrow">Features</div><h2>Everything that matters,<br>in one calm place.</h2><p class="sub">Built for India, designed to be easy, and quietly smart in the background.</p></div>
@@ -210,6 +297,14 @@ footer .links{display:flex;gap:22px;flex-wrap:wrap}footer a:hover{color:var(--go
 document.getElementById('y').textContent=new Date().getFullYear();
 const io=new IntersectionObserver(e=>e.forEach(x=>{if(x.isIntersecting){x.target.classList.add('in');io.unobserve(x.target)}}),{threshold:.12});
 document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+
+const tabs=[...document.querySelectorAll('.dt')],scs=[...document.querySelectorAll('.sc')];let cur=0,timer;
+function show(i){cur=i;tabs.forEach((t,k)=>{t.classList.toggle('on',k===i);const p=t.querySelector('.prog');p.style.animation='none';p.offsetWidth;p.style.animation=''});
+scs.forEach((s,k)=>{s.classList.remove('on');s.querySelectorAll('.pop').forEach(e=>{e.style.animation='none';e.offsetWidth;e.style.animation=''})});scs[i].classList.add('on');
+if(i===0){const b=scs[0].querySelector('[data-count]');let n=0;const t=setInterval(()=>{n+=2;b.textContent=Math.min(n,78);if(n>=78)clearInterval(t)},20)}
+if(i===2){let n=7950;const w=scs[2].querySelector('[data-walk]'),bar=scs[2].querySelector('[data-walkbar]');const t=setInterval(()=>{n+=Math.ceil(Math.random()*9);w.textContent=n.toLocaleString('en-IN');bar.style.width=Math.min(n/100,100)+'%';if(cur!==2)clearInterval(t)},120)}
+clearTimeout(timer);timer=setTimeout(()=>show((cur+1)%tabs.length),6000)}
+tabs.forEach((t,i)=>t.addEventListener('click',()=>show(i)));show(0);
 </script>
 </body>
 </html>
