@@ -369,7 +369,23 @@ async function coach() {
     a: a30, d: D, fl: freeLimit,
     lp: LIMITS.plus.ai_coach_per_day || 999999, lpr: LIMITS.pro.ai_coach_per_day || 999999, le: LIMITS.elite.ai_coach_per_day || 999999,
   });
+  // AI spend (estimates from ai_usage at list prices; aggregate only, no user ids)
+  let aiCost = notTracked('ai_usage table not found.');
+  try {
+    const c = await db.get(`SELECT
+        COALESCE(sum(est_cost_inr) FILTER (WHERE created_at >= now() - interval '30 days'), 0)::float AS c30,
+        COALESCE(sum(est_cost_inr) FILTER (WHERE created_at >= now() - interval '7 days'), 0)::float AS c7,
+        COALESCE(sum(est_cost_inr) FILTER (WHERE feature = 'coach' AND created_at >= now() - interval '30 days'), 0)::float AS coach30,
+        COALESCE(sum(est_cost_inr) FILTER (WHERE feature = 'food_photo' AND created_at >= now() - interval '30 days'), 0)::float AS photo30,
+        count(*) FILTER (WHERE created_at >= now() - interval '30 days')::int AS calls30
+      FROM ai_usage`);
+    const b = await require('../services/aiUsage').budgetStatus();
+    const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+    aiCost = { month_inr: b.spent_inr, budget_inr: b.budget_inr, last_7d_inr: r2(c.c7), last_30d_inr: r2(c.c30),
+      coach_30d_inr: r2(c.coach30), food_photo_30d_inr: r2(c.photo30), calls_30d: c.calls30 };
+  } catch (e) { if (e.code !== '42P01') throw e; }
   return {
+    ai_cost: aiCost,
     chats_by_day: days.map((d) => ({ date: d, value: dm[d] ? (dm[d].users < MIN_GROUP ? SMALL : dm[d].chats) : 0 })),
     chat_users_30d: count(sums.users),
     ai_answers_30d: sums.users >= MIN_GROUP ? sums.ai : (sums.ai ? SMALL : 0),
@@ -384,6 +400,7 @@ async function coach() {
     },
     guardrail_blocks: notTracked('Guardrail blocks are not recorded yet.'),
     notes: {
+      ai_cost: 'Estimated at list prices from model_prices x tokens recorded per AI call (ai_usage). Month = calendar month IST; budget = app_config ai_monthly_budget_inr.',
       chats: 'Coach questions counted per day: Free-plan rule-based answers + AI (Gemini) answers. Days with fewer than 5 users show "<5".',
       limits: `Free limit = ${freeLimit} questions a day. AI allowance by plan: Plus ${LIMITS.plus.ai_coach_per_day}, Pro ${LIMITS.pro.ai_coach_per_day}, Elite ${LIMITS.elite.ai_coach_per_day} (counted against each user's current plan).`,
     },
