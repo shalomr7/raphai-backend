@@ -118,9 +118,13 @@ function createGeminiProvider({ apiKey, fetchImpl = fetch, env = process.env, pe
       }
       contents.push(r.content);
       const responses = [];
-      for (const call of r.functionCalls.slice(0, MAX_CALLS_PER_ROUND)) {
-        // userId is OURS (from the token). Whatever the model put in args is ignored for scoping.
-        const result = await tools.runTool(userId, call.name, call.args);
+      const calls = r.functionCalls.slice(0, MAX_CALLS_PER_ROUND);
+      // Run this round's tool calls in parallel (read-only lookups; order of results kept).
+      // userId is OURS (from the token). Whatever the model put in args is ignored for scoping.
+      const results = await Promise.all(calls.map((call) => tools.runTool(userId, call.name, call.args)));
+      for (let i = 0; i < calls.length; i++) {
+        const call = calls[i];
+        const result = results[i];
         used.push(call.name);
         if (tools.TOOLS[call.name] && tools.TOOLS[call.name].proposes && result && result.requires_confirmation) {
           proposals.push({ kind: result.kind, values: result.values, summary: result.summary, confirmation_token: result.confirmation_token });
