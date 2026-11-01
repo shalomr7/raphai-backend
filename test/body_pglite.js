@@ -55,6 +55,13 @@ const migs = require('../src/migrations');
   const f = await bg.forecast(1); console.log('forecast', f.status, JSON.stringify(f.change_kg), f.coverage.complete_days, f.message);
   const f2 = await bg.forecast(1); console.log('saved rows', (await h.get('SELECT count(*)::int c FROM weight_forecasts')).c);
   const p = await bg.progress(1); console.log('progress', p.status, p.start_kg, p.current_trend_kg, p.target_kg, p.progress_pct, p.measurements.length, p.predictions.length);
+  // regional foods seed labelling (same SQL as db.init)
+  const regional = require('../src/seed/foods_regional');
+  await h.run(`INSERT INTO foods (name, serving, kcal, protein_g, carbs_g, fat_g, created_by) VALUES ('Egg Dosa','mine',1,1,1,1,1)`);
+  await h.run(`INSERT INTO foods (name, serving, kcal, protein_g, carbs_g, fat_g) VALUES ('Mutton Biryani','1 plate',700,32,68,32)`);
+  await h.run(`UPDATE foods SET verified = 1, data_quality = 'typical_recipe' WHERE name = ANY($1) AND created_by IS NULL AND (verified <> 1 OR data_quality IS DISTINCT FROM 'typical_recipe')`, [regional.map((f) => f.name)]);
+  const fq = await h.all(`SELECT name, verified, data_quality FROM foods WHERE name IN ('Egg Dosa','Mutton Biryani') ORDER BY name`);
+  console.log('food labels', JSON.stringify(fq));
   const tools = require('../src/ai/tools');
   const t = await tools.runTool(1, 'getWeightForecast', {}); console.log('tool', t.status, JSON.stringify(t.change_kg));
 })().catch((e) => { console.error('ERR', e); process.exit(1); });

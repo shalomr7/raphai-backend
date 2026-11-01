@@ -452,6 +452,14 @@ const migrations = [
       DELETE FROM schema_migrations WHERE id = '016_body_goals';
     `,
   },
+  {
+    // Food library quality label (2026-11-01). NULL = checked seed value;
+    // 'typical_recipe' = typical home-recipe estimate (labelled in the app).
+    // Additive; down leaves the column (harmless).
+    id: '017_food_data_quality',
+    sql: `ALTER TABLE foods ADD COLUMN IF NOT EXISTS data_quality TEXT;`,
+    down: `DELETE FROM schema_migrations WHERE id = '017_food_data_quality';`,
+  },
 ];
 
 // Sanity: ids must be unique and sorted

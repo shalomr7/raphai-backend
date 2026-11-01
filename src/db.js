@@ -22,7 +22,9 @@
 // ------------------------------------------------------------
 
 const { Pool, types } = require('pg');
-const foods = require('./seed/foods');
+const baseFoods = require('./seed/foods');
+const regionalFoods = require('./seed/foods_regional');
+const foods = baseFoods.concat(regionalFoods);
 
 // Postgres sends COUNT(*) and SUM(integer) as "bigint", and ROUND(...) as
 // "numeric". The pg package gives those to us as TEXT by default.
@@ -218,7 +220,10 @@ async function init() {
       values,
     );
     // Every seeded food is "Verified" (values checked against standard tables)
-    await t.query('UPDATE foods SET verified = 1 WHERE name = ANY($1) AND verified <> 1', [foods.map((f) => f.name)]);
+    await t.query('UPDATE foods SET verified = 1 WHERE name = ANY($1) AND verified <> 1', [baseFoods.map((f) => f.name)]);
+    // Regional dishes: curated library rows, labelled as typical-recipe values (not lab-checked).
+    await t.query(`UPDATE foods SET verified = 1, data_quality = 'typical_recipe'
+                    WHERE name = ANY($1) AND created_by IS NULL AND (verified <> 1 OR data_quality IS DISTINCT FROM 'typical_recipe')`, [regionalFoods.map((f) => f.name)]);
   });
 }
 
