@@ -297,15 +297,15 @@ async function money() {
   const budgets = (await db.get('SELECT count(DISTINCT user_id)::int AS n FROM budgets WHERE month = $1', [month])).n;
   const goals = (await db.get('SELECT count(DISTINCT user_id)::int AS n FROM savings_goals')).n;
 
-  const sr = await db.get(`WITH sp AS (SELECT user_id, sum(amount_paise) AS spent FROM expenses WHERE date BETWEEN @a AND @d GROUP BY 1),
+  const sr = await db.get(`WITH sp AS (SELECT user_id, sum(amount_paise) AS spent FROM expenses WHERE date BETWEEN @a AND @d AND type = 'expense' GROUP BY 1),
     r AS (SELECT GREATEST(-1, LEAST(1, (p.income_paise - sp.spent)::float8 / p.income_paise)) AS rate
       FROM sp JOIN profiles p ON p.user_id = sp.user_id WHERE p.income_paise > 0)
     SELECT count(*)::int AS users, COALESCE(avg(rate), 0) AS rate FROM r`, { a: a30, d: D });
 
   const cats = await db.all(`SELECT category, sum(amount_paise)::float8 AS spent, count(DISTINCT user_id)::int AS users
-    FROM expenses WHERE date BETWEEN @a AND @d GROUP BY category ORDER BY spent DESC`, { a: a30, d: D });
+    FROM expenses WHERE date BETWEEN @a AND @d AND type = 'expense' GROUP BY category ORDER BY spent DESC`, { a: a30, d: D });
   const totalSpent = cats.reduce((s, c) => s + c.spent, 0);
-  const spenders = (await db.get('SELECT count(DISTINCT user_id)::int AS n FROM expenses WHERE date BETWEEN $1 AND $2', [a30, D])).n;
+  const spenders = (await db.get("SELECT count(DISTINCT user_id)::int AS n FROM expenses WHERE date BETWEEN $1 AND $2 AND type = 'expense'", [a30, D])).n;
   let topCats = [];
   if (spenders >= MIN_GROUP && totalSpent > 0) {
     const big = cats.filter((c) => c.users >= MIN_GROUP);

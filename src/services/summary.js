@@ -104,50 +104,50 @@ function healthScore(day) {
   return { score, parts };
 }
 
-// Everything about one month of money
+// Everything about one month of money.
+// Spending = expenses minus refunds per category (transfers and income never
+// count as spending; see services/wealthCalc.js). Income = income recorded in
+// the ledger that month; if none is recorded yet, the monthly income from the
+// profile (income_source says which).
 async function wealthMonth(userId, month = thisMonth()) {
-  const [profile, byCategory, budgets, bills] = await Promise.all([
+  const wd = require('./wealthData');
+  const wc = require('./wealthCalc');
+  const { from, to } = wc.monthRange(month);
+  const D = today();
+  const [profile, totals, budgets, occ] = await Promise.all([
     db.get('SELECT income, income_paise FROM profiles WHERE user_id = $1', [userId]),
-    db.all(`
-      SELECT category, SUM(amount_paise)::bigint AS total_paise, COUNT(*)::int AS count
-      FROM expenses WHERE user_id = $1 AND substr(date, 1, 7) = $2
-      GROUP BY category ORDER BY total_paise DESC
-    `, [userId, month]),
-    db.all('SELECT category, amount, amount_paise FROM budgets WHERE user_id = $1 AND month = $2', [userId, month]),
-    // Bills: which are due by today (for this month) and are they paid?
-    db.all(`
-      SELECT b.*, (p.bill_id IS NOT NULL)::int AS paid
-      FROM bills b LEFT JOIN bill_payments p ON p.bill_id = b.id AND p.month = $1
-      WHERE b.user_id = $2
-    `, [month, userId]),
+    wd.monthTotals(userId, month),
+    db.all('SELECT category, amount, amount_paise FROM budgets WHERE user_id = $1 AND month = $2 AND category <> $3', [userId, month, wc.OVERALL]),
+    wd.billOccurrences(userId, from, to, D),
   ]);
-  const incomeP = profile ? money.paiseOf(profile, 'income') : 0;
+  const profileIncomeP = profile ? money.paiseOf(profile, 'income') : 0;
+  const incomeP = totals.has_income_data ? totals.income_paise : profileIncomeP;
 
-  // All sums in integer paise; rupees only at the end
-  let spentP = 0; let investedP = 0; let needsP = 0; let wantsP = 0;
-  for (const c of byCategory) {
-    const t = Number(c.total_paise);
-    if (SAVINGS.includes(c.category)) investedP += t;
-    else {
-      spentP += t;
-      if (NEEDS.includes(c.category)) needsP += t; else wantsP += t;
-    }
+  let needsP = 0; let wantsP = 0;
+  for (const c of totals.by_category) {
+    if (c.is_saving) continue;
+    if (NEEDS.includes(c.category)) needsP += c.total_paise; else wantsP += c.total_paise;
   }
-
+  // One line per bill due this month (old shape: due_day + paid)
+  const bills = occ.filter((o) => o.status !== 'skipped').map((o) => ({
+    ...o.bill, due_day: Number(o.effective_date.slice(8, 10)), due_date: o.effective_date, paid: o.status === 'paid' ? 1 : 0,
+  }));
   const isCurrent = month === thisMonth();
-  const dueSoFar = bills.filter((b) => !isCurrent || b.due_day <= dayOfMonth());
+  const dueSoFar = bills.filter((b) => !isCurrent || b.due_date <= D);
+  const byCategory = totals.by_category.filter((c) => c.total_paise > 0 || c.count > 0);
 
   return {
     month,
     income: money.rupees(incomeP),
-    spent: money.rupees(spentP),
-    invested: money.rupees(investedP),
+    income_source: totals.has_income_data ? 'recorded' : profileIncomeP ? 'profile' : null,
+    spent: money.rupees(totals.spent_paise),
+    invested: money.rupees(totals.invested_paise),
     needs: money.rupees(needsP),
     wants: money.rupees(wantsP),
     income_paise: incomeP,
-    spent_paise: spentP,
-    invested_paise: investedP,
-    by_category: byCategory.map((c) => ({ category: c.category, total: money.rupees(c.total_paise), total_paise: Number(c.total_paise), count: c.count })),
+    spent_paise: totals.spent_paise,
+    invested_paise: totals.invested_paise,
+    by_category: byCategory.map((c) => ({ category: c.category, total: money.rupees(c.total_paise), total_paise: c.total_paise, count: c.count })),
     budgets,
     bills,
     bills_due_so_far: dueSoFar.length,

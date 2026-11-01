@@ -93,7 +93,7 @@ async function loadDays(userId, from, to) {
               SUM(amount_paise) FILTER (WHERE category <> 'Investment') AS spend_paise,
               SUM(amount_paise) FILTER (WHERE category = 'Food' OR note ~* '(swiggy|zomato|delivery|takeaway|order)') AS food_out_paise,
               COUNT(*)::int AS n
-            FROM expenses WHERE ${W} GROUP BY date`, p),
+            FROM expenses WHERE ${W} AND type = 'expense' GROUP BY date`, p),
     db.all(`SELECT DISTINCT ON (date) date, weight_kg FROM weight_logs WHERE ${W} ORDER BY date, id DESC`, p),
     db.all(`SELECT date, active_minutes, resting_hr, active_kcal, distance_m FROM activity_daily WHERE ${W}`, p),
   ]);
@@ -120,6 +120,20 @@ async function loadDays(userId, from, to) {
   return days;
 }
 
+// This month's bill occurrences in the old shape (one row per due date, with
+// due_day and paid_month), so weekly / quarterly / yearly bills are right too.
+async function billsThisMonth(userId, D) {
+  const wd = require('./wealthData');
+  const wc = require('./wealthCalc');
+  const month = D.slice(0, 7);
+  const { from, to } = wc.monthRange(month);
+  const occ = await wd.billOccurrences(userId, from, to, D);
+  return occ.filter((o) => o.status !== 'skipped').map((o) => ({
+    id: o.bill.id, name: o.bill.name, amount: o.bill.amount, amount_paise: o.bill.amount_paise,
+    due_day: Number(o.effective_date.slice(8, 10)), paid_month: o.status === 'paid' ? month : null,
+  }));
+}
+
 async function loadContext(userId, D) {
   // Start of yesterday's month (so yesterday's score works on the 1st too)
   const monthStart = `${addDays(D, -1).slice(0, 7)}-01`;
@@ -128,9 +142,8 @@ async function loadContext(userId, D) {
     loadDays(userId, from, D),
     db.get('SELECT * FROM profiles WHERE user_id = $1', [userId]),
     db.get('SELECT name FROM users WHERE id = $1', [userId]),
-    db.all(`SELECT b.id, b.name, b.amount, b.amount_paise, b.due_day, p.month AS paid_month
-            FROM bills b LEFT JOIN bill_payments p ON p.bill_id = b.id AND p.month = $2 WHERE b.user_id = $1`, [userId, D.slice(0, 7)]),
-    db.all('SELECT month, category, amount, amount_paise FROM budgets WHERE user_id = $1 AND month >= $2', [userId, monthStart.slice(0, 7)]),
+    billsThisMonth(userId, D),
+    db.all("SELECT month, category, amount, amount_paise FROM budgets WHERE user_id = $1 AND month >= $2 AND category <> 'Overall'", [userId, monthStart.slice(0, 7)]),
     db.get(`SELECT MIN(d) AS d FROM (
               SELECT MIN(date) d FROM food_logs WHERE user_id = $1 UNION ALL SELECT MIN(date) FROM water_logs WHERE user_id = $1
               UNION ALL SELECT MIN(date) FROM step_logs WHERE user_id = $1 UNION ALL SELECT MIN(date) FROM sleep_logs WHERE user_id = $1
@@ -138,9 +151,14 @@ async function loadContext(userId, D) {
               UNION ALL SELECT MIN(date) FROM workouts WHERE user_id = $1 UNION ALL SELECT MIN(date) FROM weight_logs WHERE user_id = $1) x`, [userId]),
   ]);
   // Expenses by category for the month(s) we look at (for budget adherence)
-  const catRows = await db.all(`SELECT date, category, amount, amount_paise FROM expenses WHERE user_id = $1 AND date >= $2 AND date <= $3`, [userId, monthStart, D]);
+  // (expenses only; refunds are taken off their category below)
+  const catRows = await db.all(`SELECT date, category, amount, amount_paise, type FROM expenses WHERE user_id = $1 AND date >= $2 AND date <= $3 AND type IN ('expense', 'refund')`, [userId, monthStart, D]);
+  // Income recorded in the ledger per month (preferred over the profile's monthly income)
+  const incomeRows = await db.all(`SELECT substr(date, 1, 7) AS month, SUM(amount_paise)::bigint AS p FROM expenses
+    WHERE user_id = $1 AND type = 'income' AND date >= $2 AND date <= $3 GROUP BY 1`, [userId, monthStart, D]);
+  const recordedIncome = Object.fromEntries(incomeRows.map((r) => [r.month, Number(r.p)]));
   const targets = summary.profileIsComplete(profile) ? calc.dailyTargets(profile) : null;
-  return { userId, D, days, profile: profile || {}, user, bills, budgets, catRows, targets, firstLog: firstLog && firstLog.d };
+  return { userId, D, days, profile: profile || {}, user, bills, budgets, catRows, targets, recordedIncome, firstLog: firstLog && firstLog.d };
 }
 
 // ------------------------------------------------------------
@@ -148,7 +166,8 @@ async function loadContext(userId, D) {
 // ------------------------------------------------------------
 function monthMoney(ctx, D) {
   const month = D.slice(0, 7);
-  const incomeP = money.paiseOf(ctx.profile, 'income');
+  const recorded = ctx.recordedIncome && ctx.recordedIncome[month];
+  const incomeP = recorded > 0 ? recorded : money.paiseOf(ctx.profile, 'income');
   const income = incomeP > 0 ? money.rupees(incomeP) : null;
   let spentP = 0; let n = 0;
   for (const d of Object.values(ctx.days)) {
@@ -162,7 +181,12 @@ function monthMoney(ctx, D) {
   const unpaidThisMonth = money.rupees(unpaidP);
   const dueSoFar = bills.filter((b) => b.due_day <= dayNum);
   const byCat = {};
-  for (const r of ctx.catRows) if (r.date.slice(0, 7) === month && r.date <= D) byCat[r.category] = money.rupees(money.toPaise(byCat[r.category]) + money.paiseOf(r));
+  for (const r of ctx.catRows) {
+    if (r.date.slice(0, 7) === month && r.date <= D) {
+      const sign = r.type === 'refund' ? -1 : 1;
+      byCat[r.category] = money.rupees(Math.max(0, money.toPaise(byCat[r.category]) + sign * money.paiseOf(r)));
+    }
+  }
   const budgets = ctx.budgets.filter((b) => b.month === month);
   return { month, income, incomeP, spent: money.rupees(spentP), spentP, expense_n: n, bills, unpaidThisMonth, unpaidP, dueSoFar, byCat, budgets, dayNum };
 }

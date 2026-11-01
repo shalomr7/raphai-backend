@@ -25,6 +25,10 @@ const USER_TABLES = {
   budgets: 'budgets',
   savings_goals: 'savings_goals',
   bills: 'bills',
+  wealth_categories: 'wealth_categories',
+  goal_entries: 'goal_entries',
+  bill_occurrences: 'bill_occurrences',
+  budget_alerts: 'budget_alerts',
   subscription: 'subscriptions',
   activity_daily: 'activity_daily',
   raphscore_daily: 'raphscore_daily',
@@ -40,6 +44,7 @@ const EXPORT_ORDER = {
   activity_daily: ' ORDER BY date',
   raphscore_daily: ' ORDER BY date',
   budgets: ' ORDER BY month, category',
+  budget_alerts: ' ORDER BY month, category, level',
 };
 
 async function buildExport(userId) {
