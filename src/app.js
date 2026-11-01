@@ -34,12 +34,30 @@ const { router: deleteAccountRoutes } = require('./routes/deleteAccount');
 const adminRoutes = require('./routes/admin');
 const adminPageRoutes = require('./routes/adminPage');
 
+const proxyaddr = require('proxy-addr');
+// Cloudflare edge ranges (https://www.cloudflare.com/ips/, 2026-11-01)
+const CLOUDFLARE_RANGES = [
+  '173.245.48.0/20', '103.21.244.0/22', '103.22.200.0/22', '103.31.4.0/22', '141.101.64.0/18',
+  '108.162.192.0/18', '190.93.240.0/20', '188.114.96.0/20', '197.234.240.0/22', '198.41.128.0/17',
+  '162.158.0.0/15', '104.16.0.0/13', '104.24.0.0/14', '172.64.0.0/13', '131.0.72.0/22',
+  '2400:cb00::/32', '2606:4700::/32', '2803:f800::/32', '2405:b500::/32', '2405:8100::/32',
+  '2a06:98c0::/29', '2c0f:f248::/32',
+];
+const isCloudflare = proxyaddr.compile(CLOUDFLARE_RANGES);
+function trustProxy() {
+  const hops = Number(process.env.TRUST_PROXY_HOPS ?? 1);
+  return (addr, i) => i < hops || isCloudflare(addr, i);
+}
+
 function createApp() {
   const app = express();
 
-  // Render puts one proxy in front of us. Trust it, so req.ip is the real
-  // user's IP (used by security logs and the /delete-account rate limit).
-  app.set('trust proxy', Number(process.env.TRUST_PROXY_HOPS ?? 1));
+  // Render puts one proxy in front of us: always trust that hop. Requests via
+  // api.heartpurse.com also pass through Cloudflare's proxy, so a further hop
+  // is trusted only when it is a Cloudflare address. req.ip stays the real
+  // user's IP (security logs, per-IP rate limits) and can't be spoofed by a
+  // client sending its own X-Forwarded-For.
+  app.set('trust proxy', trustProxy());
 
   // Security headers on every response (helmet: CSP, HSTS, nosniff, frame-deny ...)
   app.disable('x-powered-by');
@@ -113,4 +131,4 @@ function createApp() {
   return app;
 }
 
-module.exports = { createApp, corsMode: () => corsOptions().mode };
+module.exports = { createApp, trustProxy, corsMode: () => corsOptions().mode };
