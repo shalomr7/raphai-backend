@@ -105,6 +105,19 @@ async function confirmProposal(userId, token) {
 // parameters: JSON schema shown to the model (Gemini "functionDeclarations")
 // rules: what validate() accepts (the real check)
 const TOOLS = {
+  getWeightForecast: {
+    description: "The user's weekly weight forecast, computed by HeartPurse's own calculator from their logged meals, steps, workouts and weigh-ins: expected change this week as a range (kg), average intake, estimated energy use, how many days were fully logged, safety flags and how past forecasts compared with real weigh-ins. status 'need_logs' or 'need_profile' means there is not enough data: say what to log; never make up a forecast.",
+    parameters: { type: 'object', properties: {} },
+    rules: null,
+    async run(userId) {
+      const f = await require('../services/bodyGoals').forecast(userId, { save: false });
+      return {
+        status: f.status, message: f.message, change_kg: f.change_kg || null, direction: f.direction || null,
+        start_weight_kg: f.start_weight_kg ?? null, goal: f.goal, inputs: f.inputs || null, coverage: f.coverage || null,
+        safety_flags: f.safety_flags || [], method: f.method || null, track_record: f.track_record,
+      };
+    },
+  },
   getHealthSummary: {
     description: "The user's nutrition, water and sleep for one day, with their daily targets. Missing data is null.",
     parameters: { type: 'object', properties: { date: { type: 'string', description: 'YYYY-MM-DD. Default: today.' } } },

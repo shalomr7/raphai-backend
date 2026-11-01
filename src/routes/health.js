@@ -103,9 +103,15 @@ router.post('/workouts', asyncHandler(async (req, res) => {
     minutes: { type: 'number', required: true, min: 1, max: 600 },
     met: { type: 'number', min: 1, max: 25 }, // optional: give your own MET
     date: { type: 'date' },
+    intensity: { type: 'string', oneOf: ['light', 'moderate', 'vigorous'] },
+    distance_km: { type: 'number', min: 0, max: 500 },
+    source: { type: 'string', oneOf: ['manual', 'suggested'] }, // 'suggested' = user confirmed an auto-detected walk/run
+    client_id: { type: 'string', maxLength: 64 },                // retry-safe: same client_id is saved once
   });
   // Use the MET from the table, or the one the app sent
-  const met = body.met || calc.MET_TABLE[body.activity];
+  // Intensity nudges the table MET (light ×0.8, vigorous ×1.2) unless a MET was sent.
+  const tableMet = calc.MET_TABLE[body.activity];
+  const met = body.met || (tableMet && calc.round(tableMet * ({ light: 0.8, vigorous: 1.2 }[body.intensity] || 1), 2));
   if (!met) {
     throw new HttpError(400, `Unknown activity "${body.activity}". Use one from GET /api/health/workouts/met-table or send "met".`);
   }
@@ -113,10 +119,21 @@ router.post('/workouts', asyncHandler(async (req, res) => {
   if (!p || !p.weight_kg) throw new HttpError(400, 'Please set weight_kg in your profile first');
 
   const kcal = calc.workoutCalories(met, p.weight_kg, body.minutes);
+  if (body.client_id) {
+    const prev = await db.get('SELECT * FROM workouts WHERE user_id = $1 AND client_id = $2', [req.user.id, body.client_id]);
+    if (prev) return res.status(200).json({ workout: prev, duplicate: true });
+  }
   const workout = await db.get(`
-    INSERT INTO workouts (user_id, date, activity, minutes, met, weight_kg, kcal) VALUES ($1, $2, $3, $4, $5, $6, $7)
+    INSERT INTO workouts (user_id, date, activity, minutes, met, weight_kg, kcal, intensity, distance_km, source, client_id)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+    ON CONFLICT (user_id, client_id) WHERE client_id IS NOT NULL DO NOTHING
     RETURNING *
-  `, [req.user.id, body.date || today(), body.activity, body.minutes, met, p.weight_kg, kcal]);
+  `, [req.user.id, body.date || today(), body.activity, body.minutes, met, p.weight_kg, kcal,
+    body.intensity || null, body.distance_km ?? null, body.source || 'manual', body.client_id || null]);
+  if (!workout) { // a concurrent retry won the race
+    const prev = await db.get('SELECT * FROM workouts WHERE user_id = $1 AND client_id = $2', [req.user.id, body.client_id]);
+    return res.status(200).json({ workout: prev, duplicate: true });
+  }
   res.status(201).json({ workout });
 }));
 
@@ -219,8 +236,14 @@ simpleLog('/mood', 'mood_logs', {
   note: { type: 'string', maxLength: 300 },
 });
 // When a new weight is logged, also update the profile so targets stay correct
-simpleLog('/weight', 'weight_logs', { weight_kg: { type: 'number', required: true, min: 25, max: 300 } }, async (userId, body) => {
-  await db.run('UPDATE profiles SET weight_kg = $1 WHERE user_id = $2', [body.weight_kg, userId]);
+simpleLog('/weight', 'weight_logs', {
+  weight_kg: { type: 'number', required: true, min: 25, max: 300 },
+  measured_at: { type: 'string', maxLength: 5, pattern: /^([01]\d|2[0-3]):[0-5]\d$/ }, // HH:MM local time, optional
+  waist_cm: { type: 'number', min: 40, max: 200 },
+}, async (userId, body) => {
+  // Only the newest measurement updates the profile (editing an old one must not)
+  const newest = await db.get('SELECT date FROM weight_logs WHERE user_id = $1 ORDER BY date DESC, id DESC LIMIT 1', [userId]);
+  if (!newest || newest.date <= body.date) await db.run('UPDATE profiles SET weight_kg = $1 WHERE user_id = $2', [body.weight_kg, userId]);
 });
 
 // ---------------- SITTING REMINDERS ----------------

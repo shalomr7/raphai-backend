@@ -11,7 +11,8 @@
     "test:food-photo": "node test/food_photo.js",
     "test:google": "node test/google.js",
     "test:admin": "node test/admin.js",
-    "test:security": "node test/security.js"
+    "test:security": "node test/security.js",
+    "test:body": "node --test test/body_engine.js"
   },
   "engines": {
     "node": ">=22"

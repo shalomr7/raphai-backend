@@ -19,6 +19,7 @@ const USER_TABLES = {
   sleep: 'sleep_logs',
   mood: 'mood_logs',
   weight: 'weight_logs',
+  weight_forecasts: 'weight_forecasts',
   reminder_settings: 'reminder_settings',
   expenses: 'expenses',
   budgets: 'budgets',

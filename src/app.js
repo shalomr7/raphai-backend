@@ -87,6 +87,7 @@ function createApp() {
   // ---- Everything below needs a login token ----
   app.use('/api/profile', requireAuth, profileRoutes);
   app.use('/api/health', requireAuth, healthRoutes);
+  app.use('/api/body', requireAuth, require('./routes/body'));
   app.use('/api/foods', requireAuth, foodsRouter);
   app.use('/api/food-logs', requireAuth, logsRouter);
   app.use('/api/wealth', requireAuth, wealthRoutes);

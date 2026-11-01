@@ -25,6 +25,8 @@ const PROFILE_RULES = {
   waist_cm: { type: 'number', min: 40, max: 200 },
   hip_cm: { type: 'number', min: 50, max: 200 },
   step_goal: { type: 'integer', min: 1000, max: 50000 },
+  target_weight_kg: { type: 'number', min: 30, max: 250 }, // Adaptive Body Goals
+  body_fat_pct: { type: 'number', min: 3, max: 60 },        // optional exact body fat % (Katch-McArdle)
 };
 
 function getProfile(userId) {
