@@ -23,6 +23,7 @@ const db = require('../db');
 const calc = require('../utils/calc');
 const { today, addDays, hourNow, weekday, daysInMonth } = require('../utils/dates');
 const summary = require('./summary');
+const wealthCalc = require('./wealthCalc');
 
 const AREAS = [
   { key: 'health', label: 'Health', weight: 0.2, words: 'food & water' },
@@ -169,10 +170,13 @@ function monthMoney(ctx, D) {
   const recorded = ctx.recordedIncome && ctx.recordedIncome[month];
   const incomeP = recorded > 0 ? recorded : money.paiseOf(ctx.profile, 'income');
   const income = incomeP > 0 ? money.rupees(incomeP) : null;
-  let spentP = 0; let n = 0;
-  for (const d of Object.values(ctx.days)) {
-    if (d.date.slice(0, 7) === month && d.date <= D && d.expense_n) { spentP += d.spend_paise || 0; n += d.expense_n; }
-  }
+  // Spending = expenses minus refunds per category, Investment kept apart:
+  // the same rules as the Wealth screens (wealthCalc.periodTotals), so the
+  // Wealth area never counts a refunded spend.
+  const monthTx = ctx.catRows.filter((r) => r.date.slice(0, 7) === month && r.date <= D)
+    .map((r) => ({ type: r.type, category: r.category, amount_paise: money.paiseOf(r), date: r.date }));
+  const tot = wealthCalc.periodTotals(monthTx);
+  const spentP = tot.spent_paise; const n = tot.expense_count;
   const isCurrentMonth = month === ctx.D.slice(0, 7);
   // Paid status is only known for the current month's payments
   const bills = ctx.bills.map((b) => ({ ...b, paid: isCurrentMonth ? Boolean(b.paid_month) : false }));
@@ -180,13 +184,7 @@ function monthMoney(ctx, D) {
   const unpaidP = money.sumPaise(bills.filter((b) => !b.paid));
   const unpaidThisMonth = money.rupees(unpaidP);
   const dueSoFar = bills.filter((b) => b.due_day <= dayNum);
-  const byCat = {};
-  for (const r of ctx.catRows) {
-    if (r.date.slice(0, 7) === month && r.date <= D) {
-      const sign = r.type === 'refund' ? -1 : 1;
-      byCat[r.category] = money.rupees(Math.max(0, money.toPaise(byCat[r.category]) + sign * money.paiseOf(r)));
-    }
-  }
+  const byCat = Object.fromEntries(tot.by_category.map((c) => [c.category, money.rupees(c.total_paise)]));
   const budgets = ctx.budgets.filter((b) => b.month === month);
   return { month, income, incomeP, spent: money.rupees(spentP), spentP, expense_n: n, bills, unpaidThisMonth, unpaidP, dueSoFar, byCat, budgets, dayNum };
 }

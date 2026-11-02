@@ -13,7 +13,8 @@
     "test:admin": "node test/admin.js",
     "test:security": "node test/security.js",
     "test:body": "node --test test/body_engine.js",
-    "test:wealth": "node --test test/wealth_calc.js && node --test test/wealth_api.js"
+    "test:wealth": "node --test test/wealth_calc.js && node --test test/wealth_api.js",
+    "test:accuracy": "node --test test/accuracy.js && node --test test/accuracy_api.js"
   },
   "engines": {
     "node": ">=22"

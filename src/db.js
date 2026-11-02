@@ -22,9 +22,7 @@
 // ------------------------------------------------------------
 
 const { Pool, types } = require('pg');
-const baseFoods = require('./seed/foods');
-const regionalFoods = require('./seed/foods_regional');
-const foods = baseFoods.concat(regionalFoods);
+const { foodSeedQueries, baseFoods, regionalFoods } = require('./seed/sql');
 
 // Postgres sends COUNT(*) and SUM(integer) as "bigint", and ROUND(...) as
 // "numeric". The pg package gives those to us as TEXT by default.
@@ -201,24 +199,9 @@ async function init() {
     }
     lastApplied = applied;
 
-    // Add the seed foods that are not there yet (by name).
-    // "WHERE NOT EXISTS" skips foods we already have, so restarting the
-    // server does not use up id numbers; ON CONFLICT is a final safety net.
-    const values = [];
-    const rows = foods.map((f, i) => {
-      values.push(f.name, f.serving, f.kcal, f.protein_g, f.carbs_g, f.fat_g);
-      const b = i * 6;
-      return `($${b + 1}::text, $${b + 2}::text, $${b + 3}::float8, $${b + 4}::float8, $${b + 5}::float8, $${b + 6}::float8, ${i})`;
-    });
-    await t.query(
-      `INSERT INTO foods (name, serving, kcal, protein_g, carbs_g, fat_g)
-       SELECT v.name, v.serving, v.kcal, v.protein_g, v.carbs_g, v.fat_g
-       FROM (VALUES ${rows.join(', ')}) AS v(name, serving, kcal, protein_g, carbs_g, fat_g, pos)
-       WHERE NOT EXISTS (SELECT 1 FROM foods f WHERE f.name = v.name)
-       ORDER BY v.pos
-       ON CONFLICT (name) DO NOTHING`,
-      values,
-    );
+    // Add the seed foods that are not there yet (by name), and bring seeded
+    // rows up to date with any corrected values (see seed/sql.js).
+    for (const q of foodSeedQueries()) await t.query(q.text, q.values);
     // Every seeded food is "Verified" (values checked against standard tables)
     await t.query('UPDATE foods SET verified = 1 WHERE name = ANY($1) AND verified <> 1', [baseFoods.map((f) => f.name)]);
     // Regional dishes: curated library rows, labelled as typical-recipe values (not lab-checked).

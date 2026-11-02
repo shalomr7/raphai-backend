@@ -9,9 +9,8 @@
 // ------------------------------------------------------------
 
 const db = require('../db');
-const calc = require('../utils/calc');
-const { today } = require('../utils/dates');
-const summary = require('./summary');
+const { today, addDays, hourNow } = require('../utils/dates');
+const intelligence = require('./intelligence');
 
 const GOOD_SCORE = 60; // HeartScore needed for the day to count
 const MAX_DAYS = 120;  // we look back at most this many days
@@ -38,12 +37,21 @@ async function loggedDates(userId) {
   return new Set(rows.map((r) => r.date));
 }
 
-// HeartScore for one day (same maths as the dashboard)
-async function raphScoreFor(userId, date, wealthCache) {
-  const month = date.slice(0, 7);
-  if (!(month in wealthCache)) wealthCache[month] = summary.wealthScore(await summary.wealthMonth(userId, month)).score;
-  const health = summary.healthScore(await summary.healthDay(userId, date)).score;
-  return calc.round((health + wealthCache[month]) / 2);
+// HeartScore for one day: the SAME score Home shows (services/intelligence.js
+// computeScore: six areas, documented weights, missing areas left out, today
+// scored for the part of the day gone so far). Until 2026-11-02 this used an
+// older formula (health + wealth only, missing data counted as 0), so the
+// "HeartScore 60+" streak did not match the HeartScore on screen.
+// One loaded context covers a month (and the week before a date), so a long
+// streak needs only a few database round trips.
+async function raphScoreFor(userId, date, cache) {
+  let ctx = cache.ctx;
+  if (!ctx || date > ctx.D || date.slice(0, 7) !== ctx.D.slice(0, 7) || !ctx.days[addDays(date, -6)]) {
+    ctx = await intelligence.loadContext(userId, date);
+    cache.ctx = ctx;
+  }
+  const isToday = date === today();
+  return intelligence.computeScore(ctx, date, { isToday, hour: hourNow() }).overall;
 }
 
 // Count days in a row where test(date) is true, starting today (or yesterday)
@@ -66,7 +74,7 @@ async function streaks(userId) {
 
   const cache = {};
   // Only work out HeartScore on days with logs (a day with no logs can't be Good)
-  const score = await countBack(async (d) => logged.has(d) && (await raphScoreFor(userId, d, cache)) >= GOOD_SCORE);
+  const score = await countBack(async (d) => logged.has(d) && ((await raphScoreFor(userId, d, cache)) ?? -1) >= GOOD_SCORE);
 
   return {
     logging: { ...logging, label: 'Days logged in a row' },

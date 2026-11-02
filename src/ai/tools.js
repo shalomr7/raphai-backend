@@ -178,12 +178,12 @@ const TOOLS = {
     rules: {},
     async run(userId) {
       const [goals, p] = await Promise.all([
-        db.all('SELECT name, target, saved, deadline FROM savings_goals WHERE user_id = $1 ORDER BY id LIMIT 10', [userId]),
+        db.all('SELECT name, target, saved, deadline, status FROM savings_goals WHERE user_id = $1 ORDER BY id LIMIT 10', [userId]),
         db.get('SELECT goal, pace_kg_week, step_goal FROM profiles WHERE user_id = $1', [userId]),
       ]);
       return {
         health_goal: p ? { goal: p.goal, pace_kg_week: p.pace_kg_week, step_goal: p.step_goal } : null,
-        savings_goals: goals.map((g) => ({ name: g.name, target: g.target, saved: g.saved, deadline: g.deadline, progress_pct: calc.round((g.saved / g.target) * 100, 1) })),
+        savings_goals: goals.map((g) => ({ name: g.name, status: g.status || 'active', target: g.target, saved: g.saved, deadline: g.deadline, progress_pct: g.target > 0 ? calc.round((g.saved / g.target) * 100, 1) : null })),
       };
     },
   },

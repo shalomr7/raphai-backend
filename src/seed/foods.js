@@ -10,7 +10,8 @@
 module.exports = [
   // Breads and rice
   { name: 'Roti / Chapati', serving: '1 medium (40 g)', kcal: 120, protein_g: 3, carbs_g: 18, fat_g: 3.7 },
-  { name: 'Phulka (no ghee)', serving: '1 small (30 g)', kcal: 85, protein_g: 2.6, carbs_g: 17, fat_g: 0.5 },
+  // 2026-11-02: was 85 kcal; 30 g cooked phulka ≈ 22–23 g atta (IFCT 2017 whole-wheat atta ≈ 320 kcal/100 g)
+  { name: 'Phulka (no ghee)', serving: '1 small (30 g)', kcal: 72, protein_g: 2.4, carbs_g: 14.5, fat_g: 0.4 },
   { name: 'Paratha (plain)', serving: '1 medium', kcal: 260, protein_g: 5, carbs_g: 36, fat_g: 10 },
   { name: 'Aloo Paratha', serving: '1 medium', kcal: 300, protein_g: 6, carbs_g: 42, fat_g: 12 },
   { name: 'Naan', serving: '1 piece', kcal: 260, protein_g: 8, carbs_g: 45, fat_g: 5 },

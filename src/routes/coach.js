@@ -269,15 +269,19 @@ const NEW_RULES = [
     topic: 'nutrition_today',
     match: (q) => has(q, ['nutrition', 'what should i eat', 'diet', 'macros', 'meal plan', 'eat today']),
     async answer(userId) {
-      const { ctx, day } = await loadDayData(userId);
+      const { ctx, D, day } = await loadDayData(userId);
       const t = ctx.targets;
       if (!t) return { text: "Fill in your profile (age, height, weight and sex for the calorie maths) and I'll set your calorie and protein targets for today." };
       const n = intelligence.nutritionSafety({ tdee: t.tdee, target: t.calories, sex: ctx.profile.sex });
       let text = `Your target today is ${t.calories.toLocaleString('en-IN')} kcal with ${t.protein_g} g protein. `;
       if (day.food_n) {
         const kcal = Math.round(day.kcal); const p = Math.round(day.protein);
+        // "Left" uses the same number as Home and the calories answer:
+        // target + today's workout kcal − eaten (summary.healthDay).
+        const hd = await summary.healthDay(userId, D);
+        const left = hd.calories_left;
         text += `So far you've had ${kcal.toLocaleString('en-IN')} kcal and ${p} g protein`;
-        text += t.calories - kcal > 0 ? `, so about ${(t.calories - kcal).toLocaleString('en-IN')} kcal left. ` : '. ';
+        text += left > 0 ? `, so about ${left.toLocaleString('en-IN')} kcal left${hd.workout_kcal > 0 ? ` (including ${hd.workout_kcal.toLocaleString('en-IN')} kcal from workouts)` : ''}. ` : '. ';
         if (p < t.protein_g * 0.6) text += 'Add protein to your next meal: dal, eggs, paneer, curd or soya chunks. ';
       } else text += "You haven't logged food yet today: try a quick log like \"2 rotis and dal\" and I'll do the maths. ";
       if (n.safety !== 'ok') text += n.message;
@@ -339,7 +343,7 @@ const OLD_RULES = [
       if (!m.income) return { text: "Add your monthly income to your profile and I'll suggest a savings amount that actually fits your life." };
       const suggested = m.income * 0.2;
       const savedSoFar = m.income - m.spent;
-      const goals = await db.all('SELECT * FROM savings_goals WHERE user_id = $1 AND saved < target ORDER BY id', [userId]);
+      const goals = await db.all('SELECT * FROM savings_goals WHERE user_id = $1 AND saved < target AND status = $2 ORDER BY id', [userId, 'active']);
       let text = `Using the 50/30/20 rule, try to save ${inr(suggested)} a month (20% of ${inr(m.income)}), ideally as an automatic transfer or SIP on payday. `
         + `So far this month, income minus spending is ${inr(savedSoFar)}.`;
       if (goals.length) {
