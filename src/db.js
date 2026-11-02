@@ -23,6 +23,7 @@
 
 const { Pool, types } = require('pg');
 const { foodSeedQueries, baseFoods, regionalFoods } = require('./seed/sql');
+const homeRecipes = require('./seed/home_recipes');
 
 // Postgres sends COUNT(*) and SUM(integer) as "bigint", and ROUND(...) as
 // "numeric". The pg package gives those to us as TEXT by default.
@@ -207,6 +208,9 @@ async function init() {
     // Regional dishes: curated library rows, labelled as typical-recipe values (not lab-checked).
     await t.query(`UPDATE foods SET verified = 1, data_quality = 'typical_recipe'
                     WHERE name = ANY($1) AND created_by IS NULL AND (verified <> 1 OR data_quality IS DISTINCT FROM 'typical_recipe')`, [regionalFoods.map((f) => f.name)]);
+    // Home-recipe base foods: same "Typical recipe" label (no single published value).
+    await t.query(`UPDATE foods SET data_quality = 'typical_recipe'
+                    WHERE name = ANY($1) AND created_by IS NULL AND data_quality IS DISTINCT FROM 'typical_recipe'`, [homeRecipes]);
   });
 }
 
