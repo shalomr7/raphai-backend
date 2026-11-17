@@ -91,7 +91,12 @@ async function confirmProposal(userId, token) {
       case 'mood':
         entry = await t.get('INSERT INTO mood_logs (user_id, date, mood, note) VALUES ($1, $2, $3, $4) RETURNING *', [userId, values.date, values.mood, values.note || null]); break;
       case 'sleep':
-        entry = await t.get('INSERT INTO sleep_logs (user_id, date, hours, quality) VALUES ($1, $2, $3, $4) RETURNING *', [userId, values.date, values.hours, values.quality || null]); break;
+        {
+          const prev = await t.get('SELECT id FROM sleep_logs WHERE user_id = $1 AND date = $2 AND source IS NULL ORDER BY id DESC LIMIT 1', [userId, values.date]);
+          entry = prev
+            ? await t.get('UPDATE sleep_logs SET hours = $1, quality = $2 WHERE id = $3 RETURNING *', [values.hours, values.quality || null, prev.id])
+            : await t.get('INSERT INTO sleep_logs (user_id, date, hours, quality) VALUES ($1, $2, $3, $4) RETURNING *', [userId, values.date, values.hours, values.quality || null]);
+        } break;
       case 'expense':
         entry = await t.get('INSERT INTO expenses (user_id, amount, category, mode, note, date) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
           [userId, values.amount, values.category, values.mode, values.note || null, values.date]); break;

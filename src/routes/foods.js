@@ -151,14 +151,30 @@ const LOG_RULES = {
   meal: { type: 'string', required: true, oneOf: MEALS },
   servings: { type: 'number', min: 0.25, max: 20 },
   date: { type: 'date' },
+  client_id: { type: 'string', maxLength: 64 }, // retry-safe: the same client_id is saved once
+};
+
+const idemKey = (req, bodyKey) => {
+  const k = bodyKey || req.get('Idempotency-Key');
+  return k ? String(k).slice(0, 64) : null;
 };
 
 logsRouter.post('/', asyncHandler(async (req, res) => {
   const body = validate(req.body, LOG_RULES);
   const food = await db.get('SELECT id FROM foods WHERE id = $1', [body.food_id]);
   if (!food) throw new HttpError(404, 'Food not found');
-  const info = await db.get('INSERT INTO food_logs (user_id, food_id, date, meal, servings) VALUES ($1, $2, $3, $4, $5) RETURNING id',
-    [req.user.id, body.food_id, body.date || today(), body.meal, body.servings || 1]);
+  const key = idemKey(req, body.client_id);
+  if (key) {
+    const prev = await db.get('SELECT id FROM food_logs WHERE user_id = $1 AND client_id = $2', [req.user.id, key]);
+    if (prev) return res.status(200).json({ entry: await db.get(`${LOG_SELECT} WHERE l.id = $1`, [prev.id]), duplicate: true });
+  }
+  let info = await db.get(`INSERT INTO food_logs (user_id, food_id, date, meal, servings, client_id) VALUES ($1, $2, $3, $4, $5, $6)
+      ON CONFLICT (user_id, client_id) WHERE client_id IS NOT NULL DO NOTHING RETURNING id`,
+    [req.user.id, body.food_id, body.date || today(), body.meal, body.servings || 1, key]);
+  if (!info && key) { // lost a race with the same retry
+    info = await db.get('SELECT id FROM food_logs WHERE user_id = $1 AND client_id = $2', [req.user.id, key]);
+    return res.status(200).json({ entry: await db.get(`${LOG_SELECT} WHERE l.id = $1`, [info.id]), duplicate: true });
+  }
   res.status(201).json({ entry: await db.get(`${LOG_SELECT} WHERE l.id = $1`, [info.id]) });
 }));
 
@@ -169,9 +185,15 @@ logsRouter.post('/repeat', asyncHandler(async (req, res) => {
     meal: { type: 'string', required: true, oneOf: MEALS },
     from_date: { type: 'date' },
     to_date: { type: 'date' },
+    client_id: { type: 'string', maxLength: 60 },
   });
   const to = b.to_date || today();
   const from = b.from_date || dayBefore(to);
+  const key = idemKey(req, b.client_id);
+  if (key) { // the same repeat request again returns the first copy instead of copying the meal twice
+    const prev = await db.all(`${LOG_SELECT} WHERE l.user_id = $1 AND l.client_id LIKE $2 ORDER BY l.id`, [req.user.id, `${key.replace(/[%_\\]/g, '')}#%`]);
+    if (prev.length) return res.status(200).json({ from_date: from, to_date: to, meal: b.meal, entries: prev, duplicate: true });
+  }
   const items = await db.all(`SELECT food_id, servings, custom_name, custom_kcal, custom_protein_g, custom_carbs_g, custom_fat_g,
       custom_grams, is_estimate, source FROM food_logs WHERE user_id = $1 AND date = $2 AND meal = $3 ORDER BY id`,
     [req.user.id, from, b.meal]);
@@ -179,11 +201,12 @@ logsRouter.post('/repeat', asyncHandler(async (req, res) => {
 
   const ids = await db.tx(async (t) => {
     const out = [];
-    for (const i of items) {
+    const safeKey = key ? key.replace(/[%_\\]/g, '') : null;
+    for (const [n, i] of items.entries()) {
       out.push((await t.get(`INSERT INTO food_logs (user_id, food_id, date, meal, servings, custom_name, custom_kcal, custom_protein_g,
-          custom_carbs_g, custom_fat_g, custom_grams, is_estimate, source) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
+          custom_carbs_g, custom_fat_g, custom_grams, is_estimate, source, client_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id`,
         [req.user.id, i.food_id, to, b.meal, i.servings, i.custom_name, i.custom_kcal, i.custom_protein_g, i.custom_carbs_g, i.custom_fat_g,
-          i.custom_grams, i.is_estimate, i.source])).id);
+          i.custom_grams, i.is_estimate, i.source, safeKey ? `${safeKey}#${n}` : null])).id);
     }
     return out;
   });

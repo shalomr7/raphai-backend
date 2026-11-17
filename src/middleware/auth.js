@@ -46,36 +46,50 @@ function signToken(user) {
   });
 }
 
+// sha256 of the token, used to remember a logged-out token without storing it
+function tokenHash(token) {
+  return require('crypto').createHash('sha256').update(String(token)).digest('hex');
+}
+
 function verifyToken(token) {
   return jwt.verify(token, jwtSecret(), { algorithms: [ALGORITHM] });
 }
 
 const INVALID = 'Your login has expired or is invalid. Please log in again.';
+// Only these 401s mean "the session is gone": the app signs out on code 'session_invalid'
+// and NOT on other 401s (a wrong password in Delete account, a Google re-check).
+const sessionError = (msg) => Object.assign(new HttpError(401, msg), { extra: { code: 'session_invalid' } });
 
 async function requireAuth(req, res, next) {
   const header = req.headers.authorization || '';
   const [kind, token] = header.split(' ');
   if (kind !== 'Bearer' || !token) {
-    return next(new HttpError(401, 'Please log in (missing Bearer token)'));
+    return next(sessionError('Please log in (missing Bearer token)'));
   }
   let payload;
   try {
     payload = verifyToken(token);
   } catch {
-    return next(new HttpError(401, INVALID));
+    return next(sessionError(INVALID));
   }
   const id = Number(payload.sub);
-  if (!Number.isInteger(id) || id <= 0) return next(new HttpError(401, INVALID));
+  if (!Number.isInteger(id) || id <= 0) return next(sessionError(INVALID));
   try {
-    const row = await db.get('SELECT tokens_valid_after FROM users WHERE id = $1', [id]);
-    if (!row) return next(new HttpError(401, INVALID));
+    let row;
+    try {
+      row = await db.get('SELECT tokens_valid_after, EXISTS (SELECT 1 FROM revoked_tokens WHERE token_hash = $2) AS revoked FROM users WHERE id = $1', [id, tokenHash(token)]);
+    } catch (e) {
+      if (e && e.code !== '42P01') throw e; // revoked_tokens not migrated yet (older DB): fall back to the old check
+      row = await db.get('SELECT tokens_valid_after FROM users WHERE id = $1', [id]);
+    }
+    if (!row || row.revoked) return next(sessionError(INVALID));
     if (row.tokens_valid_after && Number(payload.iat) < Math.floor(new Date(row.tokens_valid_after).getTime() / 1000)) {
-      return next(new HttpError(401, INVALID));
+      return next(sessionError(INVALID));
     }
   } catch (err) {
     return next(err);
   }
-  req.user = { id };
+  req.user = { id, tokenExp: Number(payload.exp) || null, tokenHash: tokenHash(token) };
   touchLastActive(id);
   next();
 }

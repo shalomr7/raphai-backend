@@ -5,6 +5,7 @@
 //                             Terms and Privacy Policy); we store that consent.
 // POST /api/auth/login     -> check password, returns a token
 // GET  /api/auth/me        -> who am I? (needs token)
+// POST /api/auth/logout     -> this token stops working
 // POST /api/auth/logout-all -> every token issued so far stops working
 // DELETE /api/auth/me      -> delete my account and ALL my data (needs token
 //                             + { "password": "..." } to confirm; Google-only
@@ -136,6 +137,16 @@ router.delete('/me', requireAuth, asyncHandler(async (req, res) => {
   }
   await deleteAccount(row.id, { req });
   res.json({ deleted: true });
+}));
+
+// Log out on THIS device: this token stops working now (others keep working).
+router.post('/logout', requireAuth, asyncHandler(async (req, res) => {
+  const exp = req.user.tokenExp ? new Date(req.user.tokenExp * 1000) : new Date(Date.now() + 30 * 864e5);
+  await db.run('DELETE FROM revoked_tokens WHERE user_id = $1 AND expires_at < now()', [req.user.id]);
+  await db.run('INSERT INTO revoked_tokens (token_hash, user_id, expires_at) VALUES ($1, $2, $3) ON CONFLICT (token_hash) DO NOTHING',
+    [req.user.tokenHash, req.user.id, exp.toISOString()]);
+  await logSecurity('logout', { req, userId: req.user.id });
+  res.json({ logged_out: true });
 }));
 
 // Log out on EVERY device: tokens issued before now stop working.

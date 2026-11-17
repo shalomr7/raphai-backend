@@ -613,6 +613,41 @@ const migrations = [
       DELETE FROM schema_migrations WHERE id = '018_wealth_mvp';
     `,
   },
+  {
+    // 019 (2026-11-18): retry-safe food logging. food_logs.client_id lets the
+    // app send the same log twice (double tap, retry after a timeout) and get
+    // one row. Additive; down drops the index and column (only retry keys lost).
+    id: '019_food_log_client_id',
+    sql: `
+      ALTER TABLE food_logs ADD COLUMN IF NOT EXISTS client_id TEXT;
+      CREATE UNIQUE INDEX IF NOT EXISTS food_logs_user_client ON food_logs (user_id, client_id) WHERE client_id IS NOT NULL;
+    `,
+    down: `
+      DROP INDEX IF EXISTS food_logs_user_client;
+      ALTER TABLE food_logs DROP COLUMN IF EXISTS client_id;
+      DELETE FROM schema_migrations WHERE id = '019_food_log_client_id';
+    `,
+  },
+  {
+    // 020 (2026-11-18): log out of THIS device. POST /api/auth/logout stores a
+    // hash of the token (never the token) until it would have expired anyway.
+    // Additive; down drops the table (logged-out tokens would work again until expiry).
+    id: '020_revoked_tokens',
+    sql: `
+      CREATE TABLE IF NOT EXISTS revoked_tokens (
+        token_hash TEXT PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        expires_at TIMESTAMPTZ NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS revoked_tokens_expiry ON revoked_tokens (expires_at);
+      ALTER TABLE revoked_tokens ENABLE ROW LEVEL SECURITY;
+    `,
+    down: `
+      DROP TABLE IF EXISTS revoked_tokens;
+      DELETE FROM schema_migrations WHERE id = '020_revoked_tokens';
+    `,
+  },
 ];
 
 // Sanity: ids must be unique and sorted

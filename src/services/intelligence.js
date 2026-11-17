@@ -84,7 +84,7 @@ async function loadDays(userId, from, to) {
   const W = 'user_id = $1 AND date >= $2 AND date <= $3';
   const [steps, sleep, mood, water, food, workouts, expenses, weight, activity] = await Promise.all([
     db.all(`SELECT date, steps FROM step_logs WHERE ${W}`, p),
-    db.all(`SELECT date, SUM(hours) AS h, AVG(quality) AS q FROM sleep_logs WHERE ${W} GROUP BY date`, p),
+    db.all(`SELECT DISTINCT ON (date) date, hours AS h, quality AS q FROM sleep_logs WHERE ${W} ORDER BY date, (source IS NULL) DESC, id DESC`, p), // one figure per night, never summed
     db.all(`SELECT date, AVG(mood) AS m FROM mood_logs WHERE ${W} GROUP BY date`, p),
     db.all(`SELECT date, SUM(ml) AS ml FROM water_logs WHERE ${W} GROUP BY date`, p),
     db.all(`SELECT l.date, SUM(COALESCE(f.kcal, l.custom_kcal, 0) * l.servings) AS kcal, SUM(COALESCE(f.protein_g, l.custom_protein_g, 0) * l.servings) AS protein, COUNT(*)::int AS n

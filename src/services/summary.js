@@ -51,7 +51,8 @@ async function healthDay(userId, date = today()) {
     db.get('SELECT COALESCE(SUM(ml),0) AS ml FROM water_logs WHERE user_id = $1 AND date = $2', [userId, date]),
     db.get('SELECT steps FROM step_logs WHERE user_id = $1 AND date = $2', [userId, date]),
     db.get('SELECT COALESCE(SUM(kcal),0) AS k FROM workouts WHERE user_id = $1 AND date = $2', [userId, date]),
-    db.get('SELECT COALESCE(SUM(hours),0) AS h, COUNT(*)::int AS n FROM sleep_logs WHERE user_id = $1 AND date = $2', [userId, date]),
+    db.get(`SELECT COALESCE((SELECT hours FROM sleep_logs WHERE user_id = $1 AND date = $2 ORDER BY (source IS NULL) DESC, id DESC LIMIT 1), 0) AS h,
+              (SELECT COUNT(*)::int FROM sleep_logs WHERE user_id = $1 AND date = $2) AS n`, [userId, date]), // one sleep figure per night: the latest manual entry wins, else the latest import (never summed)
   ]);
   const targets = profileIsComplete(profile) ? calc.dailyTargets(profile) : null;
   const water = waterRow.ml;

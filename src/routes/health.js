@@ -164,6 +164,15 @@ function simpleLog(path, table, rules, afterCreate) {
   router.post(path, asyncHandler(async (req, res) => {
     const body = validate(req.body, allRules);
     body.date = body.date || today();
+    if (table === 'sleep_logs') {
+      // One manual sleep entry per night: saving again corrects it instead of adding hours.
+      const existing = await db.get('SELECT id FROM sleep_logs WHERE user_id = $1 AND date = $2 AND source IS NULL ORDER BY id DESC LIMIT 1', [req.user.id, body.date]);
+      if (existing) {
+        const entry = await db.get('UPDATE sleep_logs SET hours = $1, quality = $2 WHERE id = $3 AND user_id = $4 RETURNING *',
+          [body.hours, body.quality ?? null, existing.id, req.user.id]);
+        return res.status(200).json({ entry, replaced: true });
+      }
+    }
     const cols = Object.keys(body);
     const entry = await db.get(`INSERT INTO ${table} (user_id, ${cols.join(', ')}) VALUES (@user_id, ${cols.map((c) => '@' + c).join(', ')}) RETURNING *`,
       { ...body, user_id: req.user.id });
